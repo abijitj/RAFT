@@ -1,0 +1,25 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/rust
+{
+	"name": "CSE223B-RAFT",
+	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "cargo doc --no-deps",
+
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-vscode.live-server"
+			],
+			// Add settings for the extensions you installed.
+			"settings": {
+				"livePreview.defaultPreviewPath": "target/doc/lab/index.html",
+				"livePreview.portNumber": 2332
+			}
+		}
+	}
+}
