@@ -3,7 +3,7 @@ pub trait WriteAheadLog {
     fn append_entry(&mut self, index: u64, term: u64, command: &[u8]) -> Result<(), String>;
     
     /// Retrieves a command from the log by its index
-    fn get_entry(&self, index: u64) -> Result<Option<Vec<u8>>, String>;
+    fn get_entry(&self, index: u64) -> Result<Option<(u64, Vec<u8>)>, String>;
     
     /// Saves the Raft metadata that must survive a crash
     fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String>;

@@ -1,5 +1,5 @@
 [package]
-name = "raft"
+name    = "raft"
 version = "0.1.0"
 edition = "2024"
 
@@ -12,9 +12,8 @@ prost = "0.14.3"
 # hydroflow = "0.10.0"
 
 [target.'cfg(not(target_os = "espidf"))'.dependencies]
+redb  = "4.1.0"
 tonic = "0.14.6"
-redb = "4.1.0"
 
 [build-dependencies]
-# tonic-build = "0.14.6"
 tonic-prost-build = "0.14.6"

@@ -1,10 +1,11 @@
 // Write ahead log implementation for RAFT
 
 use super::WriteAheadLog;
-use redb::{Database, Error as RedbError, ReadableDatabase, ReadableTable, TableDefinition};
+use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
+use std::convert::TryInto;
 use std::path::Path;
 
-const LOG_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("raft_log"); // For the actual log entries
+const LOG_TABLE: TableDefinition<u64, Vec<u8>> = TableDefinition::new("raft_log"); // For the actual log entries
 const METADATA_TABLE: TableDefinition<&str, u64> = TableDefinition::new("raft_metadata"); // For the persistent metadata (term and voted_for)
 
 pub struct UnixWal {
@@ -29,23 +30,33 @@ impl UnixWal {
 }
 
 impl WriteAheadLog for UnixWal {
-    fn append_entry(&mut self, index: u64, _term: u64, command: &[u8]) -> Result<(), String> {
+    fn append_entry(&mut self, index: u64, term: u64, command: &[u8]) -> Result<(), String> {
+        let mut data = Vec::with_capacity(8 + command.len());
+        data.extend_from_slice(&term.to_le_bytes());
+        data.extend_from_slice(command);
+
         let write_txn = self.db.begin_write().map_err(|e| e.to_string())?;
         {
             let mut table = write_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
-            table.insert(index, command).map_err(|e| e.to_string())?;
+            table.insert(index, data).map_err(|e| e.to_string())?;
         }
         write_txn.commit().map_err(|e| e.to_string())?;
         Ok(())
     }
 
-    fn get_entry(&self, index: u64) -> Result<Option<Vec<u8>>, String> {
+    fn get_entry(&self, index: u64) -> Result<Option<(u64, Vec<u8>)>, String> {
         let read_txn = self.db.begin_read().map_err(|e| e.to_string())?;
         let table = read_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
-        
+
         let result = table.get(index).map_err(|e| e.to_string())?;
         if let Some(accessguard) = result {
-            Ok(Some(accessguard.value().to_vec()))
+            let bytes = accessguard.value();
+            if bytes.len() < 8 {
+                return Err("corrupted log entry: too short".into());
+            }
+
+            let term = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
+            Ok(Some((term, bytes[8..].to_vec())))
         } else {
             Ok(None)
         }
