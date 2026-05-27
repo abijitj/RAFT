@@ -5,15 +5,16 @@ edition = "2024"
 
 [dependencies]
 async-trait = "0.1.53"
-# log = "0.4"
-prost = "0.9"
-# rand = "0.8"
-# serde = { version = "1.0", features = ["derive", "rc"] }
-# serde_json = "1.0"
-tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
-# tokio-stream = { version = "0.1", features = ["net"] }
-tonic = "0.6"
-# local-ip-address = "0.4.4"
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
+tonic = "0.14.6"
+tonic-prost = "0.14.6"
+prost = "0.14.3"
+# hydroflow = "0.10.0"
+
+[target.'cfg(not(target_os = "espidf"))'.dependencies]
+tonic = "0.14.6"
+redb = "4.1.0"
 
 [build-dependencies]
-tonic-build = { version = "0.6", features = ["rustfmt"] }
+# tonic-build = "0.14.6"
+tonic-prost-build = "0.14.6"
