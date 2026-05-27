@@ -67,10 +67,22 @@ pub enum RaftEvent {
         reply_channel: oneshot::Sender<RequestVoteReply>,
     },
 
+    /// RequestVote RPC result returned by the outbound network worker
+    RequestVoteResponse {
+        from_node_id: u64,
+        result: Result<RequestVoteReply, String>,
+    },
+
     /// Incoming AppendEntries RPC (Heartbeat or Log replication)
     AppendEntries {
         args: AppendEntriesArgs,
         reply_channel: oneshot::Sender<AppendEntriesReply>,
+    },
+
+    /// AppendEntries RPC result returned by the outbound network worker
+    AppendEntriesResponse {
+        from_node_id: u64,
+        result: Result<AppendEntriesReply, String>,
     },
 
     // --- Client Events ---

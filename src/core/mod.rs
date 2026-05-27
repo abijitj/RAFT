@@ -1,3 +1,3 @@
 pub mod events;
 mod core;
-pub use core::RaftCore;
+pub use core::{NodeState, RaftCore};

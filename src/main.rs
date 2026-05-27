@@ -52,15 +52,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         peers_map.insert(peer_id, client);
     }
 
+    let peer_ids = peers_map.keys().copied().collect();
+
     // 4. Initialize Team Member 1's Client Worker with the connected clients
     let client_worker = RaftClientWorker::new(outbound_rx, peers_map);
 
     // 5. Initialize Team Member 1's Server Implementation
-    let server_impl = RaftServerImpl::new(inbound_tx);
+    let server_impl = RaftServerImpl::new(inbound_tx.clone());
 
     // 6. Initialize Team Member 3's Core Logic Loop
     // (You would pass Team Member 2's storage engine in here as well)
-    let mut core_loop = core::RaftCore::new(inbound_rx, outbound_tx);
+    let mut core_loop =
+        core::RaftCore::new_with_config(inbound_rx, inbound_tx, outbound_tx, my_id, peer_ids);
 
     // 7. Spawn background execution tasks
     
