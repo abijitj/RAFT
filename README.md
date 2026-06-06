@@ -27,6 +27,8 @@ Alternatively, you can launch it manually:
 
 A new browser tab will open with a fully functional VS Code environment. Wait a few minutes for the container to build and initialize.
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/abijitj/RAFT?machine=standardLinux32gb)
+
 ---
 
 ## Compiling & Installing Shadow
