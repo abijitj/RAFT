@@ -14,6 +14,7 @@ use tokio::sync::mpsc;
 mod core;
 mod network;
 
+use core::events::RaftEvent;
 use network::server::RaftServerImpl;
 use network::pb::raft_server::RaftServer;
 use network::pb::raft_client::RaftClient;
@@ -55,13 +56,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let peer_ids = peers_map.keys().copied().collect();
 
     // 4. Initialize Team Member 1's Client Worker with the connected clients
-    let client_worker = RaftClientWorker::new(outbound_rx, peers_map);
+    let client_worker = RaftClientWorker::new(outbound_rx, peers_map);    
 
     // 5. Initialize Team Member 1's Server Implementation
     let server_impl = RaftServerImpl::new(inbound_tx.clone());
 
+
     // 6. Initialize Team Member 3's Core Logic Loop
     // (You would pass Team Member 2's storage engine in here as well)
+    let cloned_tx = inbound_tx.clone();
     let mut core_loop =
         core::RaftCore::new_with_config(inbound_rx, inbound_tx, outbound_tx, my_id, peer_ids);
 
@@ -75,6 +78,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Task B: Pure Core Logic State Machine
     tokio::spawn(async move {
         core_loop.run().await;
+    });
+
+    // spawn heartbeat tick worker
+    let heartbeat_tx = cloned_tx;
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(50));
+        
+        loop {
+            interval.tick().await; // Blocks non-blockingly for 50ms
+            
+            if heartbeat_tx.send(RaftEvent::HeartbeatTick).await.is_err() {
+                break;
+            }
+        }
     });
 
     // Task C: Inbound gRPC Server (Blocks the main thread, keeping the app alive)
