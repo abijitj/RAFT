@@ -1,24 +1,211 @@
 general:
-  stop_time: 10s
+  stop_time: 10m
   model_unblocked_syscall_latency: true
 
 network:
   graph:
-    type: 1_gbit_switch
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          label "Control Room"
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 1
+          label "Factory Floor A"
+          host_bandwidth_down "100 Mbit"
+          host_bandwidth_up "100 Mbit"
+        ]
+        node [
+          id 2
+          label "Factory Floor B"
+          host_bandwidth_down "100 Mbit"
+          host_bandwidth_up "100 Mbit"
+        ]
+        node [
+          id 3
+          label "Warehouse"
+          host_bandwidth_down "50 Mbit"
+          host_bandwidth_up "50 Mbit"
+        ]
+        node [
+          id 4
+          label "Outdoor Sensors"
+          host_bandwidth_down "10 Mbit"
+          host_bandwidth_up "1 Mbit"
+        ]
+        edge [
+          source 0
+          target 0
+          latency "1 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 1
+          latency "1 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 2
+          target 2
+          latency "1 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 3
+          target 3
+          latency "1 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 4
+          target 4
+          latency "1 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 1
+          latency "2 ms"
+          packet_loss 0.001
+        ]
+        edge [
+          source 0
+          target 2
+          latency "2 ms"
+          packet_loss 0.001
+        ]
+        edge [
+          source 0
+          target 3
+          latency "10 ms"
+          packet_loss 0.005
+        ]
+        edge [
+          source 0
+          target 4
+          latency "25 ms"
+          packet_loss 0.03
+        ]
+      ]
 
 hosts:
   server:
     network_node_id: 0
     processes:
-    - path: python3
-      args: -m http.server 80
-      start_time: 3s
+    - path: tgen
+      args: ../../../tgen.server.graphml.xml
+      start_time: 1s
       expected_final_state: running
-  client1: &client_host
-    network_node_id: 0
-    processes:
-    - path: curl
-      args: -s server
-      start_time: 5s
-  client2: *client_host
-  client3: *client_host
+
+  # Clients 1-30: Factory Floor A (Node 1)
+  client1: &node1 { network_node_id: 1, processes: [{ path: tgen, args: "../../../tgen.client.graphml.xml", start_time: 2s }] }
+  client2: *node1
+  client3: *node1
+  client4: *node1
+  client5: *node1
+  client6: *node1
+  client7: *node1
+  client8: *node1
+  client9: *node1
+  client10: *node1
+  client11: *node1
+  client12: *node1
+  client13: *node1
+  client14: *node1
+  client15: *node1
+  client16: *node1
+  client17: *node1
+  client18: *node1
+  client19: *node1
+  client20: *node1
+  client21: *node1
+  client22: *node1
+  client23: *node1
+  client24: *node1
+  client25: *node1
+  client26: *node1
+  client27: *node1
+  client28: *node1
+  client29: *node1
+  client30: *node1
+
+  # Clients 31-60: Factory Floor B (Node 2)
+  client31: &node2 { network_node_id: 2, processes: [{ path: tgen, args: "../../../tgen.client.graphml.xml", start_time: 2s }] }
+  client32: *node2
+  client33: *node2
+  client34: *node2
+  client35: *node2
+  client36: *node2
+  client37: *node2
+  client38: *node2
+  client39: *node2
+  client40: *node2
+  client41: *node2
+  client42: *node2
+  client43: *node2
+  client44: *node2
+  client45: *node2
+  client46: *node2
+  client47: *node2
+  client48: *node2
+  client49: *node2
+  client50: *node2
+  client51: *node2
+  client52: *node2
+  client53: *node2
+  client54: *node2
+  client55: *node2
+  client56: *node2
+  client57: *node2
+  client58: *node2
+  client59: *node2
+  client60: *node2
+
+  # Clients 61-80: Warehouse (Node 3)
+  client61: &node3 { network_node_id: 3, processes: [{ path: tgen, args: "../../../tgen.client.graphml.xml", start_time: 2s }] }
+  client62: *node3
+  client63: *node3
+  client64: *node3
+  client65: *node3
+  client66: *node3
+  client67: *node3
+  client68: *node3
+  client69: *node3
+  client70: *node3
+  client71: *node3
+  client72: *node3
+  client73: *node3
+  client74: *node3
+  client75: *node3
+  client76: *node3
+  client77: *node3
+  client78: *node3
+  client79: *node3
+  client80: *node3
+
+  # Clients 81-99: Outdoor Sensors (Node 4)
+  client81: &node4 { network_node_id: 4, processes: [{ path: tgen, args: "../../../tgen.client.graphml.xml", start_time: 2s }] }
+  client82: *node4
+  client83: *node4
+  client84: *node4
+  client85: *node4
+  client86: *node4
+  client87: *node4
+  client88: *node4
+  client89: *node4
+  client90: *node4
+  client91: *node4
+  client92: *node4
+  client93: *node4
+  client94: *node4
+  client95: *node4
+  client96: *node4
+  client97: *node4
+  client98: *node4
+  client99: *node4
