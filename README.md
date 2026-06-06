@@ -1,12 +1,23 @@
 # RAFT
 An implementation of the RAFT Consensus protocol targeted towards embedded applications. 
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/YOUR-USERNAME/YOUR-REPO-NAME)
+
+To avoid the complexities of cross-architecture compilation and local machine emulation (especially on Apple Silicon or ARM devices), this repository is configured to run entirely in the cloud using **GitHub Codespaces**. This provides a native `x86_64` Linux environment perfect for the **Shadow Discrete-Event Network Simulator**.
+
+---
+
+## Prerequisites
+
+* A **GitHub Account**
+* A modern web browser (or Visual Studio Code with the [GitHub Codespaces extension](https://marketplace.visualstudio.com/items?itemName=GitHub.codespaces) installed).
+
 ---
 
 ## Getting Started
 
 ### 1. Launching the Codespace
-You can launch the cloud environment instantly by clicking the **"Open in GitHub Codespaces"** button below. 
+You can launch the cloud environment instantly by clicking the **"Open in GitHub Codespaces"** badge at the top of this README. 
 
 Alternatively, you can launch it manually:
 1. Navigate to the main page of this repository on GitHub.
@@ -16,21 +27,21 @@ Alternatively, you can launch it manually:
 
 A new browser tab will open with a fully functional VS Code environment. Wait a few minutes for the container to build and initialize.
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/YOUR-USERNAME/YOUR-REPO-NAME)
-
 ---
 
 ## Compiling & Installing Shadow
 
-Once your Codespace is running and terminal access is available at the bottom of the screen, you need to compile Shadow.
+Once your Codespace is running and terminal access is available at the bottom of the screen, you need to pull and compile Shadow. 
 
-### 1. Run the Build Toolchain
-Navigate to the Shadow source directory, create a build directory, and run the compiler:
+*Note: Free-tier Codespaces typically run on machines with limited RAM (e.g., 2 to 4 cores). We restrict compilation to a maximum of 4 parallel jobs to prevent the cloud container from crashing due to memory exhaustion.*
 
-    cd ~/shadow
-    ./setup build --only-generate
-    cd build
-    make -j 4
+### 1. Clone and Build
+Navigate to the home directory (outside of your RAFT workspace), clone the simulator, and run the compiler:
+
+    cd ~
+    git clone https://github.com/shadow/shadow.git
+    cd shadow
+    ./setup build --jobs 4
 
 ### 2. Install Globally
 Once compilation reaches 100% successfully, complete the installation:
