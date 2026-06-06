@@ -1,26 +1,24 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
-	"name": "CSE223B-RAFT",
-	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
-
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "cargo doc --no-deps",
-	"postCreateCommand": "rustup toolchain install 1.95.0 && rustup default 1.95.0 && sudo apt-get update && sudo apt-get install -y protobuf-compiler && cargo doc --no-deps",
-
-	// Configure tool-specific properties.
-	"customizations": {
-		// Configure properties specific to VS Code.
-		"vscode": {
-			// Add the IDs of extensions you want installed when the container is created.
-			"extensions": [
-				"ms-vscode.live-server"
-			],
-			// Add settings for the extensions you installed.
-			"settings": {
-				"livePreview.defaultPreviewPath": "target/doc/lab/index.html",
-				"livePreview.portNumber": 2332
-			}
-		}
-	}
+    "name": "CSE223B-RAFT-Shadow",
+    "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
+    "runArgs": [
+        "--platform=linux/amd64",
+        "--shm-size=1024g",
+        "--security-opt", "seccomp=unconfined",
+        "--ulimit", "nofile=1048576:1048576" 
+    ],
+    "postCreateCommand": "sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cmake findutils libclang-dev libc-dbg libglib2.0-0 libglib2.0-dev make netbase python3 python3-networkx xz-utils util-linux gcc g++ protobuf-compiler && rustup toolchain install 1.95.0 && rustup default 1.95.0 && cargo doc --no-deps",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.live-server"
+            ],
+            "settings": {
+                "livePreview.defaultPreviewPath": "target/doc/lab/index.html",
+                "livePreview.portNumber": 2332
+            }
+        }
+    }
 }
