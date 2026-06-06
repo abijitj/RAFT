@@ -120,3 +120,167 @@ impl pb::raft_server::Raft for RaftServerImpl {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tonic::{Request, Code};
+    use crate::core::events::{RequestVoteReply, AppendEntriesReply};
+
+    // ========================================================================
+    // Test 1: RequestVote Translation
+    // ========================================================================
+    #[tokio::test]
+    async fn test_request_vote_success() {
+        let (tx_to_core, mut rx_from_server) = mpsc::channel(1);
+        let server = RaftServerImpl::new(tx_to_core);
+
+        let proto_req = pb::RequestVoteArgs {
+            term: 5,
+            candidate_id: 2,
+            last_log_index: 10,
+            last_log_term: 4,
+        };
+
+        // 1. Fire the request
+        let server_handle = tokio::spawn(async move {
+            use pb::raft_server::Raft;
+            server.request_vote(Request::new(proto_req)).await
+        });
+
+        // 2. Intercept the event as "The Brain"
+        let event = rx_from_server.recv().await.expect("Server should have emitted an event");
+        match event {
+            RaftEvent::RequestVote { args, reply_channel } => {
+                assert_eq!(args.term, 5);
+                assert_eq!(args.candidate_id, 2);
+                
+                // 3. Send back a successful reply
+                let _ = reply_channel.send(RequestVoteReply {
+                    term: 5,
+                    vote_granted: true,
+                });
+            }
+            _ => panic!("Expected RequestVote event"),
+        }
+
+        // 4. Verify the server translated the reply back to Tonic correctly
+        let response = server_handle.await.unwrap().unwrap().into_inner();
+        assert_eq!(response.term, 5);
+        assert_eq!(response.vote_granted, true);
+    }
+
+    // ========================================================================
+    // Test 2: AppendEntries (Testing the `repeated` entries)
+    // ========================================================================
+    #[tokio::test]
+    async fn test_append_entries_success() {
+        let (tx_to_core, mut rx_from_server) = mpsc::channel(1);
+        let server = RaftServerImpl::new(tx_to_core);
+
+        // Create a payload with 2 log entries
+        let proto_req = pb::AppendEntriesArgs {
+            term: 2,
+            leader_id: 1,
+            prev_log_index: 5,
+            prev_log_term: 1,
+            entries: vec![
+                pb::LogEntry { term: 2, index: 6, command: true },
+                pb::LogEntry { term: 2, index: 7, command: false },
+            ],
+            leader_commit: 5,
+        };
+
+        let server_handle = tokio::spawn(async move {
+            use pb::raft_server::Raft;
+            server.append_entries(Request::new(proto_req)).await
+        });
+
+        let event = rx_from_server.recv().await.unwrap();
+        match event {
+            RaftEvent::AppendEntries { args, reply_channel } => {
+                assert_eq!(args.entries.len(), 2);
+                assert_eq!(args.entries[0].index, 6);
+                assert_eq!(args.entries[1].command, false);
+                
+                let _ = reply_channel.send(AppendEntriesReply {
+                    term: 2,
+                    success: true,
+                });
+            }
+            _ => panic!("Expected AppendEntries event"),
+        }
+
+        let response = server_handle.await.unwrap().unwrap().into_inner();
+        assert_eq!(response.success, true);
+    }
+
+    // ========================================================================
+    // Test 3: Core Loop is Dead (mpsc closed)
+    // ========================================================================
+    #[tokio::test]
+    async fn test_server_returns_error_if_core_is_down() {
+        let (tx_to_core, rx_from_server) = mpsc::channel(1);
+        let server = RaftServerImpl::new(tx_to_core);
+
+        // Simulate "The Brain" crashing by dropping the receiver
+        drop(rx_from_server);
+
+        let proto_req = pb::RequestVoteArgs {
+            term: 1,
+            candidate_id: 1,
+            last_log_index: 0,
+            last_log_term: 0,
+        };
+
+        use pb::raft_server::Raft;
+        // Call directly (no spawn) because it should fail immediately
+        let result = server.request_vote(Request::new(proto_req)).await;
+
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), Code::Internal);
+        assert!(status.message().contains("down"));
+    }
+
+    // ========================================================================
+    // Test 4: Core Panics During Processing (oneshot dropped)
+    // ========================================================================
+    #[tokio::test]
+    async fn test_server_returns_error_if_core_drops_reply_channel() {
+        let (tx_to_core, mut rx_from_server) = mpsc::channel(1);
+        let server = RaftServerImpl::new(tx_to_core);
+
+        let proto_req = pb::AppendEntriesArgs {
+            term: 1,
+            leader_id: 1,
+            prev_log_index: 0,
+            prev_log_term: 0,
+            entries: vec![],
+            leader_commit: 0,
+        };
+
+        let server_handle = tokio::spawn(async move {
+            use pb::raft_server::Raft;
+            server.append_entries(Request::new(proto_req)).await
+        });
+
+        // The Brain receives the event...
+        let event = rx_from_server.recv().await.unwrap();
+        match event {
+            RaftEvent::AppendEntries { reply_channel, .. } => {
+                // ...but then a panic or bug causes the Brain to drop the channel 
+                // without sending a reply back to the network layer
+                drop(reply_channel); 
+            }
+            _ => panic!("Expected AppendEntries event"),
+        }
+
+        // The server should cleanly catch the dropped channel and return a gRPC error
+        let result = server_handle.await.unwrap();
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), Code::Internal);
+        assert!(status.message().contains("dropped"));
+    }
+}
