@@ -3,8 +3,9 @@ use crate::core::events::{
     RequestVoteReply,
 };
 use std::collections::{HashMap, HashSet};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, oneshot};
+use tokio::time::Instant;
 
 const MAX_NODES: usize = 100;
 const MIN_ELECTION_TIMEOUT_MS: u64 = 150;
@@ -123,12 +124,27 @@ impl RaftCore {
     }
 
     /// The main sequential execution loop for the Raft state machine.
-    /// This pulls events off the incoming queue and processes them one by one.
+    /// It processes inbound events and owns the randomized election timer.
     pub async fn run(&mut self) {
         println!("Raft Core Loop initialized. Starting event processing...");
-        while let Some(event) = self.inbound_rx.recv().await {
-            self.handle_event(event).await;
+
+        loop {
+            let election_timer_active = self.state != NodeState::Leader;
+            let election_deadline = self.election_deadline;
+
+            tokio::select! {
+                event = self.inbound_rx.recv() => {
+                    let Some(event) = event else {
+                        break;
+                    };
+                    self.handle_event(event).await;
+                }
+                _ = tokio::time::sleep_until(election_deadline), if election_timer_active => {
+                    self.handle_election_timeout().await;
+                }
+            }
         }
+
         println!("Raft Core Loop has shut down because the inbound channel closed.");
     }
 
@@ -766,6 +782,35 @@ mod tests {
         assert_eq!(core.voted_for(), Some(1));
         assert!(core.votes_received.contains(&1));
         drain_request_votes(&mut outbound_rx, 2).await;
+    }
+
+    // Verifies that the production core loop starts an election when its own deadline expires.
+    #[tokio::test]
+    async fn core_loop_starts_election_when_internal_deadline_expires() {
+        let (mut core, inbound_tx, mut outbound_rx) = test_core(vec![2, 3]);
+        core.election_deadline = Instant::now() + Duration::from_millis(10);
+
+        let core_task = tokio::spawn(async move {
+            core.run().await;
+        });
+
+        let command = tokio::time::timeout(Duration::from_millis(100), outbound_rx.recv())
+            .await
+            .expect("core did not start an election before the test timeout")
+            .expect("outbound channel closed before RequestVote was sent");
+
+        match command {
+            OutboundCommand::SendRequestVote { args, .. } => {
+                assert_eq!(args.term, 1);
+                assert_eq!(args.candidate_id, 1);
+            }
+            OutboundCommand::SendAppendEntries { .. } => {
+                panic!("expected RequestVote command");
+            }
+        }
+
+        drop(inbound_tx);
+        core_task.abort();
     }
 
     // Verifies that a candidate becomes leader after receiving a majority of votes.

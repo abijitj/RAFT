@@ -53,7 +53,7 @@ pub struct AppendEntriesReply {
 pub enum RaftEvent {
     // --- Timer Events ---
     
-    /// Triggered by the background timer when no heartbeat is received
+    /// Manual/test hook for triggering the same election path as the core-owned timer
     ElectionTimeout,
     
     /// Triggered periodically by the leader to prompt sending heartbeats
