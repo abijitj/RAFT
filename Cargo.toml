@@ -10,6 +10,11 @@ tonic = "0.14.6"
 tonic-prost = "0.14.6"
 prost = "0.14.3"
 tokio-stream = "0.1.18"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+env_logger = "0.11"
+rand = "0.10.1"
 # hydroflow = "0.10.0"
 
 [target.'cfg(not(target_os = "espidf"))'.dependencies]

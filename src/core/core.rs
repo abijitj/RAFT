@@ -2,10 +2,14 @@ use crate::core::events::{
     AppendEntriesArgs, AppendEntriesReply, LogEntry, OutboundCommand, RaftEvent, RequestVoteArgs,
     RequestVoteReply,
 };
+use log::{debug, error, info, warn};
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
+
+use rand::{Rng, RngExt, SeedableRng};
+use rand::rngs::StdRng;
 
 const MAX_NODES: usize = 100;
 const MIN_ELECTION_TIMEOUT_MS: u64 = 150;
@@ -114,7 +118,7 @@ impl RaftCore {
             last_applied: 0,
             state_machine_value: false,
             known_leader_id: None,
-            election_deadline: Self::new_election_deadline(),
+            election_deadline: Self::new_election_deadline(node_id, 0),
             votes_received: HashSet::new(),
             next_index: HashMap::new(),
             match_index: HashMap::new(),
@@ -126,7 +130,7 @@ impl RaftCore {
     /// The main sequential execution loop for the Raft state machine.
     /// It processes inbound events and owns the randomized election timer.
     pub async fn run(&mut self) {
-        println!("Raft Core Loop initialized. Starting event processing...");
+        info!("Raft Core Loop initialized on Node {}. Starting event processing...", self.node_id);
 
         loop {
             let election_timer_active = self.state != NodeState::Leader;
@@ -145,7 +149,7 @@ impl RaftCore {
             }
         }
 
-        println!("Raft Core Loop has shut down because the inbound channel closed.");
+        info!("Raft Core Loop has shut down because the inbound channel closed.");
     }
 
     async fn handle_event(&mut self, event: RaftEvent) {
@@ -186,6 +190,7 @@ impl RaftCore {
             return;
         }
 
+        info!("Election timeout expired! Initiating election for term {}", self.current_term + 1);
         self.start_election().await;
     }
 
@@ -223,13 +228,20 @@ impl RaftCore {
         self.votes_received.insert(self.node_id);
         self.reset_election_timer();
         self.persist_term_and_vote();
+        
+        info!("Transitioned to Candidate for term {}", self.current_term);
     }
 
     fn become_follower(&mut self, term: u64) {
         if term > self.current_term {
+            info!("Saw higher term ({} > {}). Updating term.", term, self.current_term);
             self.current_term = term;
             self.voted_for = None;
             self.persist_term_and_vote();
+        }
+
+        if self.state != NodeState::Follower {
+            info!("Transitioned to Follower for term {}", self.current_term);
         }
 
         self.state = NodeState::Follower;
@@ -240,6 +252,7 @@ impl RaftCore {
     }
 
     async fn become_leader(&mut self) {
+        info!("Received majority votes. Transitioning to Leader for term {}!", self.current_term);
         self.state = NodeState::Leader;
         self.known_leader_id = Some(self.node_id);
         self.votes_received.clear();
@@ -258,7 +271,10 @@ impl RaftCore {
     }
 
     fn handle_request_vote(&mut self, args: RequestVoteArgs) -> RequestVoteReply {
+        debug!("Received RequestVote from Node {} for term {}", args.candidate_id, args.term);
+
         if args.term < self.current_term {
+            warn!("Rejecting RequestVote from Node {} (stale term {})", args.candidate_id, args.term);
             return RequestVoteReply {
                 term: self.current_term,
                 vote_granted: false,
@@ -271,6 +287,7 @@ impl RaftCore {
         }
 
         if !self.is_voting_node(args.candidate_id) {
+            warn!("Rejecting RequestVote from unknown Node {}", args.candidate_id);
             return RequestVoteReply {
                 term: self.current_term,
                 vote_granted: false,
@@ -283,9 +300,12 @@ impl RaftCore {
         let vote_granted = vote_available && log_is_current;
 
         if vote_granted {
+            info!("Granting vote to Node {} for term {}", args.candidate_id, args.term);
             self.voted_for = Some(args.candidate_id);
             self.reset_election_timer();
             self.persist_term_and_vote();
+        } else {
+            debug!("Rejecting RequestVote from Node {} (already voted or log stale)", args.candidate_id);
         }
 
         RequestVoteReply {
@@ -300,6 +320,7 @@ impl RaftCore {
         result: Result<RequestVoteReply, String>,
     ) {
         let Ok(reply) = result else {
+            warn!("Failed to receive vote response from Node {}", from_node_id);
             return;
         };
 
@@ -317,6 +338,7 @@ impl RaftCore {
         }
 
         if reply.vote_granted {
+            debug!("Received vote from Node {}", from_node_id);
             self.votes_received.insert(from_node_id);
         }
 
@@ -342,6 +364,7 @@ impl RaftCore {
         self.reset_election_timer();
 
         if !self.log_contains(args.prev_log_index, args.prev_log_term) {
+            warn!("Rejecting AppendEntries from Node {} (log mismatch at index {})", args.leader_id, args.prev_log_index);
             return AppendEntriesReply {
                 term: self.current_term,
                 success: false,
@@ -367,6 +390,7 @@ impl RaftCore {
         result: Result<AppendEntriesReply, String>,
     ) {
         let Ok(reply) = result else {
+            debug!("AppendEntries to Node {} failed or timed out", from_node_id);
             return;
         };
 
@@ -396,6 +420,7 @@ impl RaftCore {
             let next_index = self.next_index.get(&from_node_id).copied().unwrap_or(1);
             self.next_index
                 .insert(from_node_id, next_index.saturating_sub(1).max(1));
+            debug!("AppendEntries rejected by Node {}. Decrementing next_index to {}", from_node_id, self.next_index[&from_node_id]);
             self.send_append_entries_to_peer(from_node_id).await;
         }
     }
@@ -406,6 +431,7 @@ impl RaftCore {
         reply_channel: oneshot::Sender<Result<(), String>>,
     ) {
         if self.state != NodeState::Leader {
+            warn!("Rejected client command: Not the leader");
             let leader_hint = self
                 .known_leader_id
                 .map(|id| format!("; known leader is node {id}"))
@@ -415,6 +441,8 @@ impl RaftCore {
         }
 
         let index = self.last_log_index() + 1;
+        info!("Received client command ({}). Appending to log at index {}", new_value, index);
+        
         let entry = LogEntry {
             term: self.current_term,
             index,
@@ -437,6 +465,7 @@ impl RaftCore {
         };
 
         if self.outbound_tx.send(command).await.is_err() {
+            error!("Failed to send RequestVote to outbound channel");
             return;
         }
 
@@ -476,6 +505,7 @@ impl RaftCore {
         };
 
         if self.outbound_tx.send(command).await.is_err() {
+            error!("Failed to send AppendEntries to outbound channel");
             return;
         }
 
@@ -560,6 +590,7 @@ impl RaftCore {
         }
 
         if self.commit_index != old_commit_index {
+            info!("Leader updated commit_index to {}", self.commit_index);
             self.apply_committed_entries();
         }
     }
@@ -569,6 +600,7 @@ impl RaftCore {
             self.last_applied += 1;
             if let Some(entry) = self.entry_at(self.last_applied) {
                 self.state_machine_value = entry.command;
+                debug!("Applied log entry {} to state machine. Value is now: {}", self.last_applied, self.state_machine_value);
             }
 
             if let Some(reply_channel) = self.pending_client_replies.remove(&self.last_applied) {
@@ -589,6 +621,7 @@ impl RaftCore {
             match self.term_at(entry.index) {
                 Some(existing_term) if existing_term == entry.term => {}
                 Some(_) => {
+                    info!("Log conflict at index {}. Truncating suffix.", entry.index);
                     self.truncate_suffix_from(entry.index);
                     self.log.push(entry);
                 }
@@ -678,18 +711,15 @@ impl RaftCore {
     }
 
     fn reset_election_timer(&mut self) {
-        self.election_deadline = Self::new_election_deadline();
+        self.election_deadline = Self::new_election_deadline(self.node_id, self.current_term);
     }
 
-    fn new_election_deadline() -> Instant {
-        let range = MAX_ELECTION_TIMEOUT_MS - MIN_ELECTION_TIMEOUT_MS + 1;
-        let jitter = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|duration| duration.subsec_nanos() as u64 % range)
-            .unwrap_or(0);
-
-        // Randomized election timeouts improve availability by reducing split votes.
-        Instant::now() + Duration::from_millis(MIN_ELECTION_TIMEOUT_MS + jitter)
+    fn new_election_deadline(node_id: u64, current_term: u64) -> Instant {
+        // seed the rng with node id (as opposed to system time) so that each node will get a different timeout
+        // in the shadow simulator
+        let mut rng = StdRng::seed_from_u64(node_id + current_term);
+        let final_timeout_ms = rng.random_range(150..300);
+        Instant::now() + Duration::from_millis(final_timeout_ms)
     }
 
     fn persist_term_and_vote(&self) {

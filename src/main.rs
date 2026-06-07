@@ -4,11 +4,13 @@
  * start the network server, network client and core in separate threads using tokio::spawn
  */
 
-
 use std::collections::HashMap;
+use std::env;
+use std::fs;
 use std::net::SocketAddr;
 use tonic::transport::Channel;
 use tokio::sync::mpsc;
+use serde::Deserialize;
 
 // Import your modules
 mod core;
@@ -20,16 +22,46 @@ use network::pb::raft_server::RaftServer;
 use network::pb::raft_client::RaftClient;
 use network::client::RaftClientWorker;
 
+use log::{info};
+
+/// Struct to map the JSON configuration file
+#[derive(Deserialize)]
+struct ClusterConfig {
+    nodes: HashMap<u64, String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Setup mock configuration (In production, load this from a file or CLI args)
-    let my_id: u64 = 1;
-    let my_listen_addr: SocketAddr = "[::1]:50051".parse()?;
-    
-    // Hardcoded peer definitions: Node ID -> IP/Port String
+
+    // initialize logger
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    // 1. Read cmd-line args and parse JSON config file 
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 3 {
+        eprintln!("Usage: {} <NODE_ID> <CONFIG_PATH>", args[0]);
+        std::process::exit(1);
+    }
+
+    let my_id: u64 = args[1].parse().expect("Node ID must be an integer");
+    let config_path = &args[2];
+
+    let config_data = fs::read_to_string(config_path)
+        .expect("Failed to read configuration file");
+    let config: ClusterConfig = serde_json::from_str(&config_data)
+        .expect("Failed to parse JSON config");
+
+    let my_listen_addr_str = config.nodes.get(&my_id)
+        .unwrap_or_else(|| panic!("Node ID {} was not found in the config file!", my_id));
+    let my_listen_addr: SocketAddr = my_listen_addr_str.parse()?;
+
     let mut peer_configs = HashMap::new();
-    peer_configs.insert(2, "http://[::1]:50052".to_string());
-    peer_configs.insert(3, "http://[::1]:50053".to_string());
+    for (&node_id, address) in &config.nodes {
+        if node_id != my_id {
+            // Tonic requires the "http://" prefix for its URIs
+            peer_configs.insert(node_id, format!("http://{}", address));
+        }
+    }
 
     // 2. Instantiate the MPSC Communication Channels
     let (inbound_tx, inbound_rx) = mpsc::channel(100);
@@ -95,7 +127,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Task C: Inbound gRPC Server (Blocks the main thread, keeping the app alive)
-    println!("Raft Node {} listening on {}", my_id, my_listen_addr);
+    // println!("Raft Node {} listening on {}", my_id, my_listen_addr);
+    info!("Raft Node {} listening on {}", my_id, my_listen_addr);
     tonic::transport::Server::builder()
         .add_service(RaftServer::new(server_impl))
         .serve(my_listen_addr)
