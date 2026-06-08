@@ -1,0 +1,30 @@
+general:
+  stop_time: 6s
+  bootstrap_end_time: 500ms
+
+network:
+  graph:
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 1 ms
+
+hosts:
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/shadow_tests/single_node.json"
+        start_time: 1s
+        shutdown_time: 2s
+        expected_final_state: {signaled: SIGTERM}
+        environment:
+          RUST_LOG: info
+
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/shadow_tests/single_node.json"
+        start_time: 3s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info

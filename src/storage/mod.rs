@@ -10,6 +10,9 @@ pub trait WriteAheadLog: Send + Sync {
     
     /// Saves the Raft metadata that must survive a crash
     fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String>;
+
+    /// Loads the persisted term and vote, using Raft's initial values when absent.
+    fn load_metadata(&self) -> Result<(u64, Option<u32>), String>;
     
     /// Discards all entries up to and including the given index
     fn truncate_log(&mut self, last_included_index: u64) -> Result<(), String>;
@@ -91,6 +94,13 @@ pub mod tests {
             Ok(())
         }
 
+        fn load_metadata(&self) -> Result<(u64, Option<u32>), String> {
+            let metadata = self.metadata.lock().unwrap();
+            let current_term = metadata.get("current_term").copied().unwrap_or(0);
+            let voted_for = metadata.get("voted_for").copied().map(|id| id as u32);
+            Ok((current_term, voted_for))
+        }
+
         fn truncate_log(&mut self, last_included_index: u64) -> Result<(), String> {
             let mut log = self.log.lock().unwrap();
             log.retain(|&k, _| k > last_included_index);
@@ -112,5 +122,14 @@ pub mod tests {
         assert_eq!(wal.log_length().unwrap(), 1);
         wal.append_entry(2, 1, &[0]).unwrap();
         assert_eq!(wal.log_length().unwrap(), 2);
+    }
+
+    #[test]
+    fn metadata_round_trips() {
+        let mut wal = MockWal::new();
+
+        assert_eq!(wal.load_metadata().unwrap(), (0, None));
+        wal.save_metadata(7, Some(3)).unwrap();
+        assert_eq!(wal.load_metadata().unwrap(), (7, Some(3)));
     }
 }

@@ -128,6 +128,24 @@ impl WriteAheadLog for UnixWal {
         Ok(())
     }
 
+    fn load_metadata(&self) -> Result<(u64, Option<u32>), String> {
+        let read_txn = self.db.begin_read().map_err(|e| e.to_string())?;
+        let table = read_txn
+            .open_table(METADATA_TABLE)
+            .map_err(|e| e.to_string())?;
+        let current_term = table
+            .get("current_term")
+            .map_err(|e| e.to_string())?
+            .map(|value| value.value())
+            .unwrap_or(0);
+        let voted_for = table
+            .get("voted_for")
+            .map_err(|e| e.to_string())?
+            .map(|value| value.value() as u32);
+
+        Ok((current_term, voted_for))
+    }
+
     fn truncate_log(&mut self, last_included_index: u64) -> Result<(), String> {
         let write_txn = self.db.begin_write().map_err(|e| e.to_string())?;
         {

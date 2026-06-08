@@ -102,21 +102,29 @@ impl RaftCore {
             "RaftCore supports at most {MAX_NODES} voting nodes"
         );
 
+        let (current_term, voted_for) = storage
+            .load_metadata()
+            .unwrap_or_else(|e| panic!("failed to load persistent Raft metadata: {e}"));
+        info!(
+            "Loaded persistent Raft state on Node {}: current_term={}, voted_for={:?}",
+            node_id, current_term, voted_for
+        );
+
         Self {
             inbound_rx,
             inbound_tx,
             outbound_tx,
             node_id,
             peer_ids: deduped_peers,
-            current_term: 0,
-            voted_for: None,
+            current_term,
+            voted_for: voted_for.map(u64::from),
             storage,
             state: NodeState::Follower,
             commit_index: 0,
             last_applied: 0,
             state_machine_value: false,
             known_leader_id: None,
-            election_deadline: Self::new_election_deadline(node_id, 0),
+            election_deadline: Self::new_election_deadline(node_id, current_term),
             votes_received: HashSet::new(),
             next_index: HashMap::new(),
             match_index: HashMap::new(),
@@ -633,7 +641,7 @@ impl RaftCore {
     fn truncate_suffix_from(&mut self, first_removed_index: u64) {
         // Truncate all entries at or after first_removed_index
         if let Err(e) = self.storage.truncate_log(first_removed_index.saturating_sub(1)) {
-            error!("Failed to truncate log at index {}: {}", first_removed_index, e);
+            panic!("failed to persist log truncation from index {first_removed_index}: {e}");
         }
         self.pending_client_replies
             .retain(|index, _| *index < first_removed_index);
@@ -690,15 +698,11 @@ impl RaftCore {
                     let command = command_bytes[0] != 0;
                     Some(LogEntry { term, index, command })
                 } else {
-                    error!("Corrupted log entry at index {}: invalid command bytes", index);
-                    None
+                    panic!("corrupted persistent log entry {index}: invalid command bytes");
                 }
             }
             Ok(None) => None,
-            Err(e) => {
-                error!("Failed to retrieve log entry at index {}: {}", index, e);
-                None
-            }
+            Err(e) => panic!("failed to read persistent log entry {index}: {e}"),
         }
     }
 
@@ -713,7 +717,7 @@ impl RaftCore {
     fn push_log_entry(&mut self, entry: LogEntry) {
         let command_byte = if entry.command { 1u8 } else { 0u8 };
         if let Err(e) = self.storage.append_entry(entry.index, entry.term, &[command_byte]) {
-            error!("Failed to append log entry at index {}: {}", entry.index, e);
+            panic!("failed to persist log entry {}: {e}", entry.index);
         }
     }
 
@@ -730,21 +734,20 @@ impl RaftCore {
                         entries.push(LogEntry { term, index, command });
                         index += 1;
                     } else {
-                        break;
+                        panic!("corrupted persistent log entry {index}: invalid command bytes");
                     }
                 }
                 Ok(None) => break,
-                Err(_) => break,
+                Err(e) => panic!("failed to read persistent log entry {index}: {e}"),
             }
         }
         entries
     }
 
     fn last_log_index(&self) -> u64 {
-        self.storage.log_length().unwrap_or_else(|e| {
-            error!("Failed to retrieve log length: {}", e);
-            0
-        })
+        self.storage
+            .log_length()
+            .unwrap_or_else(|e| panic!("failed to read persistent log length: {e}"))
     }
 
     fn last_log_term(&self) -> u64 {
@@ -769,7 +772,10 @@ impl RaftCore {
         // Convert Option<u64> to Option<u32> for storage API
         let voted_for_u32 = self.voted_for.map(|id| id as u32);
         if let Err(e) = self.storage.save_metadata(self.current_term, voted_for_u32) {
-            error!("Failed to persist term and vote: {}", e);
+            panic!(
+                "failed to persist Raft term {} and vote {:?}: {e}",
+                self.current_term, self.voted_for
+            );
         }
     }
 
@@ -845,6 +851,26 @@ mod tests {
         assert_eq!(core.state(), NodeState::Follower);
         assert_eq!(core.current_term(), 0);
         assert_eq!(core.voted_for(), None);
+    }
+
+    #[tokio::test]
+    async fn server_restores_persisted_term_and_vote() {
+        let (inbound_tx, inbound_rx) = mpsc::channel(100);
+        let (outbound_tx, _) = mpsc::channel(100);
+        let mut storage = crate::storage::tests::MockWal::new();
+        storage.save_metadata(7, Some(2)).unwrap();
+
+        let core = RaftCore::new_with_config(
+            inbound_rx,
+            inbound_tx,
+            outbound_tx,
+            1,
+            vec![2, 3],
+            Box::new(storage),
+        );
+
+        assert_eq!(core.current_term(), 7);
+        assert_eq!(core.voted_for(), Some(2));
     }
 
     // Verifies that an election timeout starts a new term, self-votes, and sends RequestVote RPCs.
