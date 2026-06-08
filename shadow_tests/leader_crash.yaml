@@ -1,0 +1,46 @@
+general:
+  stop_time: 30s
+  bootstrap_end_time: 1s
+
+network:
+  graph:
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 10 ms
+
+hosts:
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        # Just pass the ID and the path to the shared config
+        args: "1 /workspaces/RAFT/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: debug
+
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: debug
+
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/cluster.json"
+        start_time: 1s
+        shutdown_time: 5s
+        expected_final_state: {signaled: SIGTERM}
+        environment:
+          RUST_LOG: debug

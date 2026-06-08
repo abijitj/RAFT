@@ -15,12 +15,14 @@ use serde::Deserialize;
 // Import your modules
 mod core;
 mod network;
+mod storage;
 
 use core::events::RaftEvent;
 use network::server::RaftServerImpl;
 use network::pb::raft_server::RaftServer;
 use network::pb::raft_client::RaftClient;
 use network::client::RaftClientWorker;
+use storage::log::UnixWal;
 
 use log::{info};
 
@@ -94,13 +96,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_impl = RaftServerImpl::new(inbound_tx.clone());
 
 
-    // 6. Initialize Team Member 3's Core Logic Loop
+    // 6. Initialize storage
+    let storage_path = format!("raft_data_{}", my_id);
+    let storage = Box::new(UnixWal::new(&storage_path)
+        .expect("Failed to initialize storage"));
+
+    // 7. Initialize Team Member 3's Core Logic Loop
     // (You would pass Team Member 2's storage engine in here as well)
     let cloned_tx = inbound_tx.clone();
     let mut core_loop =
-        core::RaftCore::new_with_config(inbound_rx, inbound_tx, outbound_tx, my_id, peer_ids);
+        core::RaftCore::new_with_config(inbound_rx, inbound_tx, outbound_tx, my_id, peer_ids, storage);
 
-    // 7. Spawn background execution tasks
+    // 8. Spawn background execution tasks
     
     // Task A: Outbound Client worker
     tokio::spawn(async move {

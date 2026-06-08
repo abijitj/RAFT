@@ -2,6 +2,7 @@ use crate::core::events::{
     AppendEntriesArgs, AppendEntriesReply, LogEntry, OutboundCommand, RaftEvent, RequestVoteArgs,
     RequestVoteReply,
 };
+use crate::storage::WriteAheadLog;
 use log::{debug, error, info, warn};
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -34,18 +35,15 @@ pub struct RaftCore {
     node_id: u64,
     peer_ids: Vec<u64>,
 
-    // --- Persistent Raft State (Required on all nodes) ---
+    // --- Persistent Raft State ---
     /// Latest term server has seen (initialized to 0 on first boot).
     current_term: u64,
     /// Candidate ID that received vote in current term (None if none).
     voted_for: Option<u64>,
-    /// TODO (Team Member 2): replace this in-memory placeholder with the
-    /// persistent log/storage interface once it exposes suffix truncation,
-    /// last-index/term lookup, and metadata loading.
-    log: Vec<LogEntry>,
+    /// Persistent storage for Raft metadata and log entries.
+    storage: Box<dyn WriteAheadLog>,
 
-    // --- Volatile Raft State (Required on all nodes) ---
-    /// The current role of this node in the cluster.
+    // --- Volatile Raft State ---
     state: NodeState,
     commit_index: u64,
     last_applied: u64,
@@ -62,27 +60,26 @@ pub struct RaftCore {
 }
 
 impl RaftCore {
-    /// Creates a bare-bones instance of the Raft Consensus Core.
-    ///
-    /// This keeps the original constructor shape for the existing main loop.
     /// Use `new_with_config` when node identity and peers are available.
     pub fn new(
         inbound_rx: mpsc::Receiver<RaftEvent>,
         outbound_tx: mpsc::Sender<OutboundCommand>,
+        storage: Box<dyn WriteAheadLog>,
     ) -> Self {
-        Self::build(inbound_rx, None, outbound_tx, 1, Vec::new())
+        Self::build(inbound_rx, None, outbound_tx, 1, Vec::new(), storage)
     }
 
     /// Creates a configured Raft core that can send RPC response events back
-    /// into its own queue after Team Member 1's outbound worker replies.
+    /// into its own queue after network layer's outbound worker replies.
     pub fn new_with_config(
         inbound_rx: mpsc::Receiver<RaftEvent>,
         inbound_tx: mpsc::Sender<RaftEvent>,
         outbound_tx: mpsc::Sender<OutboundCommand>,
         node_id: u64,
         peer_ids: Vec<u64>,
+        storage: Box<dyn WriteAheadLog>,
     ) -> Self {
-        Self::build(inbound_rx, Some(inbound_tx), outbound_tx, node_id, peer_ids)
+        Self::build(inbound_rx, Some(inbound_tx), outbound_tx, node_id, peer_ids, storage)
     }
 
     fn build(
@@ -91,6 +88,7 @@ impl RaftCore {
         outbound_tx: mpsc::Sender<OutboundCommand>,
         node_id: u64,
         peer_ids: Vec<u64>,
+        storage: Box<dyn WriteAheadLog>,
     ) -> Self {
         let mut deduped_peers: Vec<u64> = peer_ids
             .into_iter()
@@ -112,7 +110,7 @@ impl RaftCore {
             peer_ids: deduped_peers,
             current_term: 0,
             voted_for: None,
-            log: Vec::new(),
+            storage,
             state: NodeState::Follower,
             commit_index: 0,
             last_applied: 0,
@@ -448,7 +446,7 @@ impl RaftCore {
             index,
             command: new_value,
         };
-        self.log.push(entry);
+        self.push_log_entry(entry);
         self.match_index.insert(self.node_id, index);
         self.pending_client_replies.insert(index, reply_channel);
 
@@ -623,9 +621,9 @@ impl RaftCore {
                 Some(_) => {
                     info!("Log conflict at index {}. Truncating suffix.", entry.index);
                     self.truncate_suffix_from(entry.index);
-                    self.log.push(entry);
+                    self.push_log_entry(entry);
                 }
-                None => self.log.push(entry),
+                None => self.push_log_entry(entry),
             }
 
             expected_index += 1;
@@ -633,7 +631,10 @@ impl RaftCore {
     }
 
     fn truncate_suffix_from(&mut self, first_removed_index: u64) {
-        self.log.retain(|entry| entry.index < first_removed_index);
+        // Truncate all entries at or after first_removed_index
+        if let Err(e) = self.storage.truncate_log(first_removed_index.saturating_sub(1)) {
+            error!("Failed to truncate log at index {}: {}", first_removed_index, e);
+        }
         self.pending_client_replies
             .retain(|index, _| *index < first_removed_index);
         self.commit_index = self.commit_index.min(first_removed_index.saturating_sub(1));
@@ -682,8 +683,23 @@ impl RaftCore {
         node_id == self.node_id || self.peer_ids.contains(&node_id)
     }
 
-    fn entry_at(&self, index: u64) -> Option<&LogEntry> {
-        self.log.iter().find(|entry| entry.index == index)
+    fn entry_at(&self, index: u64) -> Option<LogEntry> {
+        match self.storage.get_entry(index) {
+            Ok(Some((term, command_bytes))) => {
+                if command_bytes.len() == 1 {
+                    let command = command_bytes[0] != 0;
+                    Some(LogEntry { term, index, command })
+                } else {
+                    error!("Corrupted log entry at index {}: invalid command bytes", index);
+                    None
+                }
+            }
+            Ok(None) => None,
+            Err(e) => {
+                error!("Failed to retrieve log entry at index {}: {}", index, e);
+                None
+            }
+        }
     }
 
     fn term_at(&self, index: u64) -> Option<u64> {
@@ -694,20 +710,51 @@ impl RaftCore {
         self.entry_at(index).map(|entry| entry.term)
     }
 
+    fn push_log_entry(&mut self, entry: LogEntry) {
+        let command_byte = if entry.command { 1u8 } else { 0u8 };
+        if let Err(e) = self.storage.append_entry(entry.index, entry.term, &[command_byte]) {
+            error!("Failed to append log entry at index {}: {}", entry.index, e);
+        }
+    }
+
     fn entries_from(&self, first_index: u64) -> Vec<LogEntry> {
-        self.log
-            .iter()
-            .filter(|entry| entry.index >= first_index)
-            .cloned()
-            .collect()
+        let mut entries = Vec::new();
+        // We need to iterate through storage from first_index upward
+        // Since storage doesn't provide range iteration, we'll iterate until we hit an error
+        let mut index = first_index;
+        loop {
+            match self.storage.get_entry(index) {
+                Ok(Some((term, command_bytes))) => {
+                    if command_bytes.len() == 1 {
+                        let command = command_bytes[0] != 0;
+                        entries.push(LogEntry { term, index, command });
+                        index += 1;
+                    } else {
+                        break;
+                    }
+                }
+                Ok(None) => break,
+                Err(_) => break,
+            }
+        }
+        entries
     }
 
     fn last_log_index(&self) -> u64 {
-        self.log.last().map(|entry| entry.index).unwrap_or(0)
+        // Find the last entry by iterating backwards from a large index
+        // This is inefficient but acceptable for now; consider adding a metadata field later
+        for index in (1..1000000u64).rev() {
+            if self.entry_at(index).is_some() {
+                return index;
+            }
+        }
+        0
     }
 
     fn last_log_term(&self) -> u64 {
-        self.log.last().map(|entry| entry.term).unwrap_or(0)
+        self.entry_at(self.last_log_index())
+            .map(|entry| entry.term)
+            .unwrap_or(0)
     }
 
     fn reset_election_timer(&mut self) {
@@ -718,13 +765,16 @@ impl RaftCore {
         // seed the rng with node id (as opposed to system time) so that each node will get a different timeout
         // in the shadow simulator
         let mut rng = StdRng::seed_from_u64(node_id + current_term);
-        let final_timeout_ms = rng.random_range(150..300);
+        let final_timeout_ms = rng.random_range(MIN_ELECTION_TIMEOUT_MS..MAX_ELECTION_TIMEOUT_MS);
         Instant::now() + Duration::from_millis(final_timeout_ms)
     }
 
-    fn persist_term_and_vote(&self) {
-        // TODO (Team Member 2): call the persistent storage metadata method here
-        // once RaftCore owns or receives a WriteAheadLog implementation.
+    fn persist_term_and_vote(&mut self) {
+        // Convert Option<u64> to Option<u32> for storage API
+        let voted_for_u32 = self.voted_for.map(|id| id as u32);
+        if let Err(e) = self.storage.save_metadata(self.current_term, voted_for_u32) {
+            error!("Failed to persist term and vote: {}", e);
+        }
     }
 
     pub fn state(&self) -> NodeState {
@@ -753,8 +803,9 @@ mod tests {
     ) {
         let (inbound_tx, inbound_rx) = mpsc::channel(100);
         let (outbound_tx, outbound_rx) = mpsc::channel(100);
+        let storage = Box::new(crate::storage::tests::MockWal::new());
         (
-            RaftCore::new_with_config(inbound_rx, inbound_tx.clone(), outbound_tx, 1, peer_ids),
+            RaftCore::new_with_config(inbound_rx, inbound_tx.clone(), outbound_tx, 1, peer_ids, storage),
             inbound_tx,
             outbound_rx,
         )
@@ -936,7 +987,7 @@ mod tests {
     #[tokio::test]
     async fn request_vote_rejects_stale_log() {
         let (mut core, _, _) = test_core(vec![2, 3]);
-        core.log.push(entry(1, 2, true));
+        core.push_log_entry(entry(1, 2, true));
         core.current_term = 3;
 
         let reply = core.handle_request_vote(RequestVoteArgs {
@@ -953,7 +1004,7 @@ mod tests {
     #[tokio::test]
     async fn request_vote_grants_up_to_date_candidate_when_vote_available() {
         let (mut core, _, _) = test_core(vec![2, 3]);
-        core.log.push(entry(1, 2, true));
+        core.push_log_entry(entry(1, 2, true));
         core.current_term = 3;
 
         let reply = core.handle_request_vote(RequestVoteArgs {
@@ -992,7 +1043,7 @@ mod tests {
     #[tokio::test]
     async fn append_entries_failure_decrements_next_index() {
         let (mut core, _, mut outbound_rx) = test_core(vec![2, 3]);
-        core.log.push(entry(1, 1, true));
+        core.push_log_entry(entry(1, 1, true));
         core.handle_election_timeout().await;
         drain_request_votes(&mut outbound_rx, 2).await;
         core.handle_request_vote_response(
@@ -1022,7 +1073,7 @@ mod tests {
     #[tokio::test]
     async fn append_entries_success_updates_replication_indexes() {
         let (mut core, _, mut outbound_rx) = test_core(vec![2, 3]);
-        core.log.push(entry(1, 1, true));
+        core.push_log_entry(entry(1, 1, true));
         core.handle_election_timeout().await;
         drain_request_votes(&mut outbound_rx, 2).await;
         core.handle_request_vote_response(
@@ -1052,7 +1103,7 @@ mod tests {
     #[tokio::test]
     async fn leader_commits_only_current_term_entries_by_majority() {
         let (mut core, _, mut outbound_rx) = test_core(vec![2, 3]);
-        core.log.push(entry(1, 1, false));
+        core.push_log_entry(entry(1, 1, false));
         core.current_term = 1;
         core.handle_election_timeout().await;
         drain_request_votes(&mut outbound_rx, 2).await;
@@ -1078,7 +1129,7 @@ mod tests {
 
         assert_eq!(core.commit_index, 0);
 
-        core.log.push(entry(2, 2, true));
+        core.push_log_entry(entry(2, 2, true));
         core.match_index.insert(1, 2);
         core.last_sent_index.insert(2, 2);
         core.handle_append_entries_response(

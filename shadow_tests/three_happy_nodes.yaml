@@ -19,8 +19,8 @@ hosts:
         args: "1 /workspaces/RAFT/cluster.json"
         start_time: 1s
         expected_final_state: running
-        # environment:
-        #   RUST_LOG: debug
+        environment:
+          RUST_LOG: debug
 
   node2:
     network_node_id: 0
@@ -30,8 +30,8 @@ hosts:
         args: "2 /workspaces/RAFT/cluster.json"
         start_time: 1s
         expected_final_state: running
-        # environment:
-        #   RUST_LOG: debug
+        environment:
+          RUST_LOG: debug
 
   node3:
     network_node_id: 0
@@ -41,5 +41,5 @@ hosts:
         args: "3 /workspaces/RAFT/cluster.json"
         start_time: 1s
         expected_final_state: running
-        # environment:
-        #   RUST_LOG: debug
+        environment:
+          RUST_LOG: debug
