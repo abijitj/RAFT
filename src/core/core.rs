@@ -5,11 +5,11 @@ use crate::core::events::{
 use crate::storage::WriteAheadLog;
 use log::{debug, error, info, warn};
 use std::collections::{HashMap, HashSet};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
 
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use rand::rngs::StdRng;
 
 const MAX_NODES: usize = 100;
@@ -180,6 +180,9 @@ impl RaftCore {
                 new_value,
                 reply_channel,
             } => self.handle_client_command(new_value, reply_channel).await,
+            RaftEvent::TestClientRequest {
+                new_value,
+            } => self.handle_test_client_command(new_value).await,
         }
     }
 
@@ -421,6 +424,30 @@ impl RaftCore {
             debug!("AppendEntries rejected by Node {}. Decrementing next_index to {}", from_node_id, self.next_index[&from_node_id]);
             self.send_append_entries_to_peer(from_node_id).await;
         }
+    }
+
+    async fn handle_test_client_command(
+        &mut self, 
+        new_value: bool, 
+    ) { 
+        if self.state != NodeState::Leader {
+            warn!("Rejected client command: Not the leader");
+            return;
+        }
+
+        let index = self.last_log_index() + 1;
+        info!("Received test client command ({}). Appending to log at index {}", new_value, index);
+        
+        let entry = LogEntry {
+            term: self.current_term,
+            index,
+            command: new_value,
+        };
+        self.push_log_entry(entry);
+        self.match_index.insert(self.node_id, index);
+
+        self.update_commit_index();
+        self.send_heartbeats().await;
     }
 
     async fn handle_client_command(
@@ -743,8 +770,8 @@ impl RaftCore {
     fn last_log_index(&self) -> u64 {
         // Find the last entry by iterating backwards from a large index
         // This is inefficient but acceptable for now; consider adding a metadata field later
-        for index in (1..1000000u64).rev() {
-            if self.entry_at(index).is_some() {
+        for index in 1..1000000u64 {
+            if self.entry_at(index).is_none() {
                 return index;
             }
         }
