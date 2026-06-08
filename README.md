@@ -21,7 +21,7 @@ Navigate to home, clone Shadow, and build:
     git clone https://github.com/shadow/shadow.git
     cd shadow
     ./setup build --jobs 4
-    sudo ./setup install
+    ./setup install
     echo 'export PATH="${PATH}:/home/vscode/.local/bin"' >> ~/.bashrc
     source ~/.bashrc
 
