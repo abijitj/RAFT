@@ -4,6 +4,9 @@ pub trait WriteAheadLog: Send + Sync {
     
     /// Retrieves a command from the log by its index
     fn get_entry(&self, index: u64) -> Result<Option<(u64, Vec<u8>)>, String>;
+
+    /// Returns the index of the final log entry, or zero when the log is empty.
+    fn log_length(&self) -> Result<u64, String>;
     
     /// Saves the Raft metadata that must survive a crash
     fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String>;
@@ -47,6 +50,9 @@ pub mod tests {
             data.extend_from_slice(&term.to_le_bytes());
             data.extend_from_slice(command);
             self.log.lock().unwrap().insert(index, data);
+            let mut metadata = self.metadata.lock().unwrap();
+            let length = metadata.get("length").copied().unwrap_or(0);
+            metadata.insert("length".to_string(), length.max(index));
             Ok(())
         }
 
@@ -64,6 +70,16 @@ pub mod tests {
             }
         }
 
+        fn log_length(&self) -> Result<u64, String> {
+            Ok(self
+                .metadata
+                .lock()
+                .unwrap()
+                .get("length")
+                .copied()
+                .unwrap_or(0))
+        }
+
         fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String> {
             let mut metadata = self.metadata.lock().unwrap();
             metadata.insert("current_term".to_string(), current_term);
@@ -78,7 +94,23 @@ pub mod tests {
         fn truncate_log(&mut self, last_included_index: u64) -> Result<(), String> {
             let mut log = self.log.lock().unwrap();
             log.retain(|&k, _| k > last_included_index);
+            let length = log.keys().copied().max().unwrap_or(0);
+            self.metadata
+                .lock()
+                .unwrap()
+                .insert("length".to_string(), length);
             Ok(())
         }
+    }
+
+    #[test]
+    fn log_length_tracks_appended_entries() {
+        let mut wal = MockWal::new();
+
+        assert_eq!(wal.log_length().unwrap(), 0);
+        wal.append_entry(1, 1, &[1]).unwrap();
+        assert_eq!(wal.log_length().unwrap(), 1);
+        wal.append_entry(2, 1, &[0]).unwrap();
+        assert_eq!(wal.log_length().unwrap(), 2);
     }
 }

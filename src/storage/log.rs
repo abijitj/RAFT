@@ -24,6 +24,33 @@ impl UnixWal {
             let _ = write_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
         }
         write_txn.commit().map_err(|e| e.to_string())?;
+
+        // Populate the length key for databases created before it existed.
+        let read_txn = db.begin_read().map_err(|e| e.to_string())?;
+        let metadata = read_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
+        let has_length = metadata.get("length").map_err(|e| e.to_string())?.is_some();
+        drop(metadata);
+        drop(read_txn);
+
+        if !has_length {
+            let read_txn = db.begin_read().map_err(|e| e.to_string())?;
+            let table = read_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
+            let mut length = 0;
+            for result in table.range(0..).map_err(|e| e.to_string())? {
+                let (key, _) = result.map_err(|e| e.to_string())?;
+                length = length.max(key.value());
+            }
+            drop(table);
+            drop(read_txn);
+
+            let write_txn = db.begin_write().map_err(|e| e.to_string())?;
+            {
+                let mut metadata =
+                    write_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
+                metadata.insert("length", length).map_err(|e| e.to_string())?;
+            }
+            write_txn.commit().map_err(|e| e.to_string())?;
+        }
         
         Ok(Self { db })
     }
@@ -39,6 +66,18 @@ impl WriteAheadLog for UnixWal {
         {
             let mut table = write_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
             table.insert(index, data).map_err(|e| e.to_string())?;
+        }
+        {
+            let mut metadata =
+                write_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
+            let length = metadata
+                .get("length")
+                .map_err(|e| e.to_string())?
+                .map(|value| value.value())
+                .unwrap_or(0);
+            metadata
+                .insert("length", length.max(index))
+                .map_err(|e| e.to_string())?;
         }
         write_txn.commit().map_err(|e| e.to_string())?;
         Ok(())
@@ -60,6 +99,17 @@ impl WriteAheadLog for UnixWal {
         } else {
             Ok(None)
         }
+    }
+
+    fn log_length(&self) -> Result<u64, String> {
+        let read_txn = self.db.begin_read().map_err(|e| e.to_string())?;
+        let table = read_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
+        let length = table
+            .get("length")
+            .map_err(|e| e.to_string())?
+            .map(|value| value.value())
+            .unwrap_or(0);
+        Ok(length)
     }
 
     fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String> {
@@ -94,6 +144,19 @@ impl WriteAheadLog for UnixWal {
             for key in keys_to_delete {
                 table.remove(key).map_err(|e| e.to_string())?;
             }
+        }
+        {
+            let table = write_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
+            let mut length = 0;
+            for result in table.range(0..).map_err(|e| e.to_string())? {
+                let (key, _) = result.map_err(|e| e.to_string())?;
+                length = length.max(key.value());
+            }
+            drop(table);
+
+            let mut metadata =
+                write_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
+            metadata.insert("length", length).map_err(|e| e.to_string())?;
         }
         write_txn.commit().map_err(|e| e.to_string())?;
         Ok(())

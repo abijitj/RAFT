@@ -741,14 +741,10 @@ impl RaftCore {
     }
 
     fn last_log_index(&self) -> u64 {
-        // Find the last entry by iterating backwards from a large index
-        // This is inefficient but acceptable for now; consider adding a metadata field later
-        for index in (1..1000000u64).rev() {
-            if self.entry_at(index).is_some() {
-                return index;
-            }
-        }
-        0
+        self.storage.log_length().unwrap_or_else(|e| {
+            error!("Failed to retrieve log length: {}", e);
+            0
+        })
     }
 
     fn last_log_term(&self) -> u64 {
