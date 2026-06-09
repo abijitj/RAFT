@@ -50,8 +50,8 @@ echo "Building project in release mode..."
 cargo build --release
 
 echo "Removing old shadow.data/ directory and shadow.log..."
-rm -rf shadow.data/
-rm shadow.log
+[ -d shadow.data ] && rm -rf shadow.data/
+[ -f shadow.log ] && rm shadow.log
 
 echo "Running shadow simulation for ${FILE_NAME}..."
 shadow "${FILE_NAME}" > shadow.log
@@ -74,6 +74,17 @@ ARCHIVE_DIR="runs/shadow_tests/${TEST_NAME}"
 
 echo "Archiving results to ${ARCHIVE_DIR}/shadow_data.tar.gz..."
 mkdir -p "$ARCHIVE_DIR"
+echo "Dumping WAL contents for each node..."
+for wal_dir in shadow.data/hosts/*/; do
+  host=$(basename "$wal_dir")
+  raft_data=$(find "$wal_dir" -name "raft_data_*" -type f | head -1)
+  if [ -n "$raft_data" ]; then
+    node_dir="${ARCHIVE_DIR}/${host}"
+    mkdir -p "$node_dir"
+    echo "  Dumping WAL for $host..."
+    cargo run --release --bin wal_dump -- "$raft_data" > "${node_dir}/wal.txt" 2>/dev/null || echo "    (dump failed for $host)"
+  fi
+done
 tar -czf "${ARCHIVE_DIR}/shadow_data.tar.gz" shadow.data shadow.log
 
 echo "Archive successfully created!"

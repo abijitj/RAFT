@@ -34,11 +34,7 @@ struct ClusterConfig {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-    // initialize logger
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    // 1. Read cmd-line args and parse JSON config file 
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).target(env_logger::Target::Stdout).init();
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         eprintln!("Usage: {} <NODE_ID> <CONFIG_PATH>", args[0]);

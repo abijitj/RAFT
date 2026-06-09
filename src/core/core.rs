@@ -419,21 +419,23 @@ impl RaftCore {
             return;
         }
 
+        let stale_next = self.last_sent_index.get(&from_node_id).copied().unwrap_or(0) + 1;
+
         if reply.success {
-            let replicated_index = self
-                .last_sent_index
-                .get(&from_node_id)
-                .copied()
-                .unwrap_or_else(|| self.next_index.get(&from_node_id).copied().unwrap_or(1) - 1);
-            self.match_index.insert(from_node_id, replicated_index);
-            self.next_index.insert(from_node_id, replicated_index + 1);
-            self.update_commit_index();
+            let replicated_index = stale_next - 1;
+            let current_match = self.match_index.get(&from_node_id).copied().unwrap_or(0);
+            if replicated_index > current_match {
+                self.match_index.insert(from_node_id, replicated_index);
+                self.next_index.insert(from_node_id, replicated_index + 1);
+                self.update_commit_index();
+            }
         } else {
             let next_index = self.next_index.get(&from_node_id).copied().unwrap_or(1);
-            self.next_index
-                .insert(from_node_id, next_index.saturating_sub(1).max(1));
-            debug!("AppendEntries rejected by Node {}. Decrementing next_index to {}", from_node_id, self.next_index[&from_node_id]);
-            self.send_append_entries_to_peer(from_node_id).await;
+            if next_index <= stale_next {
+                self.next_index.insert(from_node_id, next_index.saturating_sub(1).max(1));
+                debug!("AppendEntries rejected by Node {}. Decrementing next_index to {}", from_node_id, self.next_index[&from_node_id]);
+                self.send_append_entries_to_peer(from_node_id).await;
+            }
         }
     }
 
