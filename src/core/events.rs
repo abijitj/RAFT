@@ -87,11 +87,17 @@ pub enum RaftEvent {
 
     // --- Client Events ---
     
-    /// A user wants to update the replicated boolean value
+    /// A user wants to update the replicated boolean value via network/RPC
     ClientCommand {
         new_value: bool,
         // Using String as a placeholder for a proper Error enum
         reply_channel: oneshot::Sender<Result<(), String>>,
+    },
+
+    /// A time-triggered test hook used within Shadow simulations to propose 
+    /// a local state change directly into the core event channel without gRPC
+    TestClientRequest {
+        new_value: bool,
     },
 }
 

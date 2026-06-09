@@ -24,7 +24,7 @@ use network::pb::raft_client::RaftClient;
 use network::client::RaftClientWorker;
 use storage::log::UnixWal;
 
-use log::{info};
+use log::{info, warn};
 
 /// Struct to map the JSON configuration file
 #[derive(Deserialize)]
@@ -47,6 +47,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let my_id: u64 = args[1].parse().expect("Node ID must be an integer");
     let config_path = &args[2];
+
+    // Optional Time-Triggered Test State values
+    let mut write_at_second: Option<u64> = None;
+    let mut write_value: Option<bool> = None;
+
+    // Parse the optional arguments if present
+    let mut i = 3;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--write-at-second" => {
+                if i + 1 < args.len() {
+                    write_at_second = Some(args[i + 1].parse().expect("Seconds must be an integer"));
+                    i += 2;
+                } else {
+                    eprintln!("Error: --write-at-second requires a value");
+                    std::process::exit(1);
+                }
+            }
+            "--write-value" => {
+                if i + 1 < args.len() {
+                    write_value = Some(args[i + 1].parse().expect("Value must be true or false"));
+                    i += 2;
+                } else {
+                    eprintln!("Error: --write-value requires a boolean value");
+                    std::process::exit(1);
+                }
+            }
+            _ => {
+                eprintln!("Unknown argument: {}", args[i]);
+                std::process::exit(1);
+            }
+        }
+    }
 
     let config_data = fs::read_to_string(config_path)
         .expect("Failed to read configuration file");
@@ -108,7 +141,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         core::RaftCore::new_with_config(inbound_rx, inbound_tx, outbound_tx, my_id, peer_ids, storage);
 
     // 8. Spawn background execution tasks
-    
+
+    // Simulated Client Injector (Only runs if flags are passed)
+    if let (Some(sec), Some(val)) = (write_at_second, write_value) {
+        let injector_tx = cloned_tx.clone();
+        info!("Node {} scheduling a simulated state write to `{}` at virtual second {}", my_id, val, sec);
+        
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(sec)).await;
+            info!("Node {} simulated client injector woke up. Injecting TestClientRequest...", my_id);
+            
+            if injector_tx.send(RaftEvent::TestClientRequest { new_value: val }).await.is_err() {
+                warn!("Node {} failed to inject TestClientRequest; core loop channel closed", my_id);
+            }
+        });
+    }
+ 
     // Task A: Outbound Client worker
     tokio::spawn(async move {
         client_worker.run().await;
