@@ -82,7 +82,7 @@ for wal_dir in shadow.data/hosts/*/; do
     node_dir="${ARCHIVE_DIR}/${host}"
     mkdir -p "$node_dir"
     echo "  Dumping WAL for $host..."
-    cargo run --release --bin wal_dump -- "$raft_data" > "${node_dir}/wal.txt" 2>/dev/null || echo "    (dump failed for $host)"
+    cargo run --release --bin wal_dump -- "$raft_data" > "${node_dir}/${host}_wal.txt" 2>/dev/null || echo "    (dump failed for $host)"
   fi
 done
 tar -czf "${ARCHIVE_DIR}/shadow_data.tar.gz" shadow.data shadow.log
