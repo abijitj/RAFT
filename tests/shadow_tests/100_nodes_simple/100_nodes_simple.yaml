@@ -13,7 +13,7 @@ hosts:
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -24,7 +24,7 @@ hosts:
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -35,7 +35,7 @@ hosts:
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -46,7 +46,7 @@ hosts:
     ip_addr: 11.0.0.4
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "4 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "4 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -57,7 +57,7 @@ hosts:
     ip_addr: 11.0.0.5
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "5 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "5 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -68,7 +68,7 @@ hosts:
     ip_addr: 11.0.0.6
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "6 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "6 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -79,7 +79,7 @@ hosts:
     ip_addr: 11.0.0.7
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "7 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "7 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -90,7 +90,7 @@ hosts:
     ip_addr: 11.0.0.8
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "8 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "8 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 32s
         shutdown_signal: SIGKILL
@@ -103,7 +103,7 @@ hosts:
     ip_addr: 11.0.0.9
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "9 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "9 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -114,7 +114,7 @@ hosts:
     ip_addr: 11.0.0.10
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "10 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "10 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -125,7 +125,7 @@ hosts:
     ip_addr: 11.0.0.11
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "11 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "11 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -136,7 +136,7 @@ hosts:
     ip_addr: 11.0.0.12
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "12 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "12 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 48s
         shutdown_signal: SIGKILL
@@ -149,7 +149,7 @@ hosts:
     ip_addr: 11.0.0.13
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "13 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "13 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -160,7 +160,7 @@ hosts:
     ip_addr: 11.0.0.14
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "14 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "14 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -171,7 +171,7 @@ hosts:
     ip_addr: 11.0.0.15
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "15 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "15 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -182,7 +182,7 @@ hosts:
     ip_addr: 11.0.0.16
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "16 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "16 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -193,7 +193,7 @@ hosts:
     ip_addr: 11.0.0.17
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "17 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "17 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -204,7 +204,7 @@ hosts:
     ip_addr: 11.0.0.18
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "18 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "18 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -215,7 +215,7 @@ hosts:
     ip_addr: 11.0.0.19
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "19 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "19 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -226,7 +226,7 @@ hosts:
     ip_addr: 11.0.0.20
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "20 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "20 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -237,7 +237,7 @@ hosts:
     ip_addr: 11.0.0.21
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "21 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "21 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -248,7 +248,7 @@ hosts:
     ip_addr: 11.0.0.22
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "22 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "22 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -259,7 +259,7 @@ hosts:
     ip_addr: 11.0.0.23
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "23 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "23 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -270,7 +270,7 @@ hosts:
     ip_addr: 11.0.0.24
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "24 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "24 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -281,7 +281,7 @@ hosts:
     ip_addr: 11.0.0.25
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "25 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "25 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -292,7 +292,7 @@ hosts:
     ip_addr: 11.0.0.26
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "26 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "26 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -303,7 +303,7 @@ hosts:
     ip_addr: 11.0.0.27
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "27 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "27 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -314,7 +314,7 @@ hosts:
     ip_addr: 11.0.0.28
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "28 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "28 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -325,7 +325,7 @@ hosts:
     ip_addr: 11.0.0.29
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "29 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "29 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -336,7 +336,7 @@ hosts:
     ip_addr: 11.0.0.30
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "30 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "30 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -347,7 +347,7 @@ hosts:
     ip_addr: 11.0.0.31
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "31 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "31 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -358,7 +358,7 @@ hosts:
     ip_addr: 11.0.0.32
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "32 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "32 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -369,7 +369,7 @@ hosts:
     ip_addr: 11.0.0.33
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "33 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "33 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 132s
         shutdown_signal: SIGKILL
@@ -382,7 +382,7 @@ hosts:
     ip_addr: 11.0.0.34
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "34 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "34 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -393,7 +393,7 @@ hosts:
     ip_addr: 11.0.0.35
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "35 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "35 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -404,7 +404,7 @@ hosts:
     ip_addr: 11.0.0.36
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "36 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "36 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -415,7 +415,7 @@ hosts:
     ip_addr: 11.0.0.37
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "37 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "37 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -426,7 +426,7 @@ hosts:
     ip_addr: 11.0.0.38
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "38 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "38 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -437,7 +437,7 @@ hosts:
     ip_addr: 11.0.0.39
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "39 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "39 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -448,7 +448,7 @@ hosts:
     ip_addr: 11.0.0.40
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "40 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "40 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -459,7 +459,7 @@ hosts:
     ip_addr: 11.0.0.41
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "41 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "41 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -470,7 +470,7 @@ hosts:
     ip_addr: 11.0.0.42
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "42 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "42 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -481,7 +481,7 @@ hosts:
     ip_addr: 11.0.0.43
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "43 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "43 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -492,7 +492,7 @@ hosts:
     ip_addr: 11.0.0.44
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "44 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "44 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -503,7 +503,7 @@ hosts:
     ip_addr: 11.0.0.45
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "45 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "45 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -514,7 +514,7 @@ hosts:
     ip_addr: 11.0.0.46
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "46 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "46 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -525,7 +525,7 @@ hosts:
     ip_addr: 11.0.0.47
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "47 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "47 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 188s
         shutdown_signal: SIGKILL
@@ -538,7 +538,7 @@ hosts:
     ip_addr: 11.0.0.48
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "48 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "48 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -549,7 +549,7 @@ hosts:
     ip_addr: 11.0.0.49
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "49 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "49 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -560,7 +560,7 @@ hosts:
     ip_addr: 11.0.0.50
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "50 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "50 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -571,7 +571,7 @@ hosts:
     ip_addr: 11.0.0.51
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "51 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "51 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -582,7 +582,7 @@ hosts:
     ip_addr: 11.0.0.52
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "52 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "52 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -593,7 +593,7 @@ hosts:
     ip_addr: 11.0.0.53
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "53 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "53 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -604,7 +604,7 @@ hosts:
     ip_addr: 11.0.0.54
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "54 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "54 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -615,7 +615,7 @@ hosts:
     ip_addr: 11.0.0.55
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "55 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "55 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -626,7 +626,7 @@ hosts:
     ip_addr: 11.0.0.56
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "56 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "56 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 224s
         shutdown_signal: SIGKILL
@@ -639,7 +639,7 @@ hosts:
     ip_addr: 11.0.0.57
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "57 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "57 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -650,7 +650,7 @@ hosts:
     ip_addr: 11.0.0.58
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "58 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "58 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -661,7 +661,7 @@ hosts:
     ip_addr: 11.0.0.59
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "59 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "59 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -672,7 +672,7 @@ hosts:
     ip_addr: 11.0.0.60
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "60 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "60 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -683,7 +683,7 @@ hosts:
     ip_addr: 11.0.0.61
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "61 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "61 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -694,7 +694,7 @@ hosts:
     ip_addr: 11.0.0.62
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "62 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "62 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -705,7 +705,7 @@ hosts:
     ip_addr: 11.0.0.63
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "63 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "63 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -716,7 +716,7 @@ hosts:
     ip_addr: 11.0.0.64
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "64 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "64 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -727,7 +727,7 @@ hosts:
     ip_addr: 11.0.0.65
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "65 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "65 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -738,7 +738,7 @@ hosts:
     ip_addr: 11.0.0.66
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "66 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "66 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -749,7 +749,7 @@ hosts:
     ip_addr: 11.0.0.67
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "67 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "67 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -760,7 +760,7 @@ hosts:
     ip_addr: 11.0.0.68
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "68 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "68 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 272s
         shutdown_signal: SIGKILL
@@ -773,7 +773,7 @@ hosts:
     ip_addr: 11.0.0.69
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "69 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "69 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -784,7 +784,7 @@ hosts:
     ip_addr: 11.0.0.70
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "70 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "70 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -795,7 +795,7 @@ hosts:
     ip_addr: 11.0.0.71
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "71 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "71 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -806,7 +806,7 @@ hosts:
     ip_addr: 11.0.0.72
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "72 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "72 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -817,7 +817,7 @@ hosts:
     ip_addr: 11.0.0.73
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "73 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "73 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -828,7 +828,7 @@ hosts:
     ip_addr: 11.0.0.74
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "74 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "74 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -839,7 +839,7 @@ hosts:
     ip_addr: 11.0.0.75
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "75 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "75 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 300s
         shutdown_signal: SIGKILL
@@ -852,7 +852,7 @@ hosts:
     ip_addr: 11.0.0.76
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "76 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "76 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -863,7 +863,7 @@ hosts:
     ip_addr: 11.0.0.77
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "77 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "77 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -874,7 +874,7 @@ hosts:
     ip_addr: 11.0.0.78
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "78 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "78 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -885,7 +885,7 @@ hosts:
     ip_addr: 11.0.0.79
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "79 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "79 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -896,7 +896,7 @@ hosts:
     ip_addr: 11.0.0.80
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "80 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "80 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -907,7 +907,7 @@ hosts:
     ip_addr: 11.0.0.81
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "81 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "81 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -918,7 +918,7 @@ hosts:
     ip_addr: 11.0.0.82
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "82 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "82 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 328s
         shutdown_signal: SIGKILL
@@ -931,7 +931,7 @@ hosts:
     ip_addr: 11.0.0.83
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "83 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "83 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -942,7 +942,7 @@ hosts:
     ip_addr: 11.0.0.84
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "84 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "84 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -953,7 +953,7 @@ hosts:
     ip_addr: 11.0.0.85
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "85 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "85 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -964,7 +964,7 @@ hosts:
     ip_addr: 11.0.0.86
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "86 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "86 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -975,7 +975,7 @@ hosts:
     ip_addr: 11.0.0.87
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "87 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "87 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -986,7 +986,7 @@ hosts:
     ip_addr: 11.0.0.88
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "88 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "88 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -997,7 +997,7 @@ hosts:
     ip_addr: 11.0.0.89
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "89 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "89 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1008,7 +1008,7 @@ hosts:
     ip_addr: 11.0.0.90
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "90 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "90 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1019,7 +1019,7 @@ hosts:
     ip_addr: 11.0.0.91
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "91 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "91 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1030,7 +1030,7 @@ hosts:
     ip_addr: 11.0.0.92
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "92 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "92 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 368s
         shutdown_signal: SIGKILL
@@ -1043,7 +1043,7 @@ hosts:
     ip_addr: 11.0.0.93
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "93 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "93 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1054,7 +1054,7 @@ hosts:
     ip_addr: 11.0.0.94
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "94 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "94 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1065,7 +1065,7 @@ hosts:
     ip_addr: 11.0.0.95
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "95 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "95 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1076,7 +1076,7 @@ hosts:
     ip_addr: 11.0.0.96
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "96 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "96 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1087,7 +1087,7 @@ hosts:
     ip_addr: 11.0.0.97
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "97 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "97 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1098,7 +1098,7 @@ hosts:
     ip_addr: 11.0.0.98
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "98 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "98 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         shutdown_time: 392s
         shutdown_signal: SIGKILL
@@ -1111,7 +1111,7 @@ hosts:
     ip_addr: 11.0.0.99
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "99 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "99 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -1122,7 +1122,7 @@ hosts:
     ip_addr: 11.0.0.100
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "100 /workspaces/RAFT/tests/shadow_tests/100_nodes_test/cluster.json"
+        args: "100 /workspaces/RAFT/tests/shadow_tests/100_nodes_simple/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
