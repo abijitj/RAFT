@@ -16,13 +16,23 @@ if [ -z "$1" ]; then
     exit 1
   fi
 
+  friendly_names=()
+  for f in "${yaml_files[@]}"; do
+    raw_name=$(basename "$f" .yaml)
+    friendly="${raw_name//_/ }"
+    friendly="${friendly^}"
+    friendly_names+=("$friendly")
+  done
+
   echo ""
   echo "      Available Shadow Tests          "
   
   PS3="Enter the number of the test you want to run: "
-  select FILE_NAME in "${yaml_files[@]}"; do
-    if [ -n "$FILE_NAME" ]; then
-      echo -e "\nSelected: $FILE_NAME"
+  select opt in "${friendly_names[@]}"; do
+    if [ -n "$opt" ]; then
+      index=$((REPLY - 1))
+      FILE_NAME="${yaml_files[$index]}"
+      echo -e "\nSelected: $opt ($FILE_NAME)"
       break
     else
       echo "Invalid selection. Please try again."
@@ -39,8 +49,9 @@ fi
 echo "Building project in release mode..."
 cargo build --release
 
-echo "Removing old shadow.data/ directory..."
+echo "Removing old shadow.data/ directory and shadow.log..."
 rm -rf shadow.data/
+rm shadow.log
 
 echo "Running shadow simulation for ${FILE_NAME}..."
 shadow "${FILE_NAME}" > shadow.log
@@ -57,3 +68,12 @@ if [[ "$BASE_NAME" == "storage_failure_fail_stop.yaml" ]]; then
   fi
   echo "PASS: storage failures stop Raft participation"
 fi
+
+TEST_NAME=$(basename "$FILE_NAME" .yaml)
+ARCHIVE_DIR="runs/shadow_tests/${TEST_NAME}"
+
+echo "Archiving results to ${ARCHIVE_DIR}/shadow_data.tar.gz..."
+mkdir -p "$ARCHIVE_DIR"
+tar -czf "${ARCHIVE_DIR}/shadow_data.tar.gz" shadow.data shadow.log
+
+echo "Archive successfully created!"
