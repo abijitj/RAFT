@@ -1,5 +1,5 @@
 general:
-  stop_time: 6s
+  stop_time: 10s
   bootstrap_end_time: 500ms
 
 network:
@@ -18,7 +18,9 @@ hosts:
         args: "1 /workspaces/RAFT/shadow_tests/single_node.json"
         start_time: 1s
         shutdown_time: 2s
-        expected_final_state: {signaled: SIGTERM}
+        shutdown_signal: SIGKILL
+        expected_final_state:
+          signaled: SIGKILL
         environment:
           RUST_LOG: info
 
