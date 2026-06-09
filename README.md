@@ -34,7 +34,7 @@ Clone and install the TGen dependency to run the network verification:
     mkdir build && cd build
     cmake ..
     make -j 4
-    sudo make install
+    make install
 
 ---
 
@@ -48,3 +48,44 @@ With Shadow and TGen installed, transition to your workspace:
 1. **Build Your Nodes:** `cargo build --release`
 2. **Execute:** Run the simulation: `shadow shadow.yaml > shadow.log`
 3. **Analyze Logs:** Inspect the `shadow.data/` directory.
+
+---
+
+## Advanced Shadow Configuration & Network Graph Setup
+
+To rigorously test the RAFT protocol's fault tolerance and performance, you will need to customize the simulated network environment. Shadow uses a `shadow.yaml` configuration file to dictate the network topology and process behaviors.
+
+For a complete breakdown of all `shadow.yaml` options, network graph attributes, and formatting rules, please see the **[Shadow Configuration Reference](shadow_config_ref.md)**.
+
+### Quick Start: Defining the Network Graph (GML)
+Shadow routes all inter-process communication through an internal routing module. You can model realistic internet paths by defining a network graph using the GML format within the `network.graph` section of your config. 
+
+**Example Custom Topology:**
+```yaml
+network:
+  graph:
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 1
+          host_bandwidth_down "100 Mbit"
+          host_bandwidth_up "100 Mbit"
+        ]
+        # Self-loops required for local host communication
+        edge [ source 0 target 0 latency "1 ms" packet_loss 0.0 ]
+        edge [ source 1 target 1 latency "1 ms" packet_loss 0.0 ]
+        # Path between nodes
+        edge [
+          source 0
+          target 1
+          latency "50 ms"
+          packet_loss 0.01  # 1% chance of dropped packets
+        ]
+      ]

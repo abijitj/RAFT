@@ -104,7 +104,10 @@ impl RaftCore {
 
         let (current_term, voted_for) = storage
             .load_metadata()
-            .unwrap_or_else(|e| panic!("failed to load persistent Raft metadata: {e}"));
+            .unwrap_or_else(|e| {
+                error!("Failed to load persistent Raft metadata: {}", e);
+                panic!("failed to load persistent Raft metadata: {e}");
+            });
         info!(
             "Loaded persistent Raft state on Node {}: current_term={}, voted_for={:?}",
             node_id, current_term, voted_for
@@ -668,6 +671,10 @@ impl RaftCore {
     fn truncate_suffix_from(&mut self, first_removed_index: u64) {
         // Truncate all entries at or after first_removed_index
         if let Err(e) = self.storage.truncate_log(first_removed_index.saturating_sub(1)) {
+            error!(
+                "Failed to persist log truncation from index {}: {}",
+                first_removed_index, e
+            );
             panic!("failed to persist log truncation from index {first_removed_index}: {e}");
         }
         self.pending_client_replies
@@ -725,11 +732,18 @@ impl RaftCore {
                     let command = command_bytes[0] != 0;
                     Some(LogEntry { term, index, command })
                 } else {
+                    error!(
+                        "Corrupted persistent log entry {}: invalid command bytes",
+                        index
+                    );
                     panic!("corrupted persistent log entry {index}: invalid command bytes");
                 }
             }
             Ok(None) => None,
-            Err(e) => panic!("failed to read persistent log entry {index}: {e}"),
+            Err(e) => {
+                error!("Failed to read persistent log entry {}: {}", index, e);
+                panic!("failed to read persistent log entry {index}: {e}");
+            }
         }
     }
 
@@ -744,6 +758,7 @@ impl RaftCore {
     fn push_log_entry(&mut self, entry: LogEntry) {
         let command_byte = if entry.command { 1u8 } else { 0u8 };
         if let Err(e) = self.storage.append_entry(entry.index, entry.term, &[command_byte]) {
+            error!("Failed to persist log entry {}: {}", entry.index, e);
             panic!("failed to persist log entry {}: {e}", entry.index);
         }
     }
@@ -761,11 +776,18 @@ impl RaftCore {
                         entries.push(LogEntry { term, index, command });
                         index += 1;
                     } else {
+                        error!(
+                            "Corrupted persistent log entry {}: invalid command bytes",
+                            index
+                        );
                         panic!("corrupted persistent log entry {index}: invalid command bytes");
                     }
                 }
                 Ok(None) => break,
-                Err(e) => panic!("failed to read persistent log entry {index}: {e}"),
+                Err(e) => {
+                    error!("Failed to read persistent log entry {}: {}", index, e);
+                    panic!("failed to read persistent log entry {index}: {e}");
+                }
             }
         }
         entries
@@ -774,7 +796,10 @@ impl RaftCore {
     fn last_log_index(&self) -> u64 {
         self.storage
             .log_length()
-            .unwrap_or_else(|e| panic!("failed to read persistent log length: {e}"))
+            .unwrap_or_else(|e| {
+                error!("Failed to read persistent log length: {}", e);
+                panic!("failed to read persistent log length: {e}");
+            })
     }
 
     fn last_log_term(&self) -> u64 {
@@ -799,6 +824,10 @@ impl RaftCore {
         // Convert Option<u64> to Option<u32> for storage API
         let voted_for_u32 = self.voted_for.map(|id| id as u32);
         if let Err(e) = self.storage.save_metadata(self.current_term, voted_for_u32) {
+            error!(
+                "Failed to persist Raft term {} and vote {:?}: {}",
+                self.current_term, self.voted_for, e
+            );
             panic!(
                 "failed to persist Raft term {} and vote {:?}: {e}",
                 self.current_term, self.voted_for
