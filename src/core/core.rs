@@ -190,10 +190,10 @@ impl RaftCore {
             RaftEvent::ClientCommand {
                 new_value,
                 reply_channel,
-            } => self.handle_client_command(new_value, reply_channel).await,
+            } => self.handle_client_command(new_value, reply_channel),
             RaftEvent::TestClientRequest {
                 new_value,
-            } => self.handle_test_client_command(new_value).await,
+            } => self.handle_test_client_command(new_value),
         }
     }
 
@@ -437,7 +437,7 @@ impl RaftCore {
         }
     }
 
-    async fn handle_test_client_command(
+    fn handle_test_client_command(
         &mut self, 
         new_value: bool, 
     ) { 
@@ -458,10 +458,9 @@ impl RaftCore {
         self.match_index.insert(self.node_id, index);
 
         self.update_commit_index();
-        self.send_heartbeats().await;
     }
 
-    async fn handle_client_command(
+    fn handle_client_command(
         &mut self,
         new_value: bool,
         reply_channel: oneshot::Sender<Result<(), String>>,
@@ -489,7 +488,6 @@ impl RaftCore {
         self.pending_client_replies.insert(index, reply_channel);
 
         self.update_commit_index();
-        self.send_heartbeats().await;
     }
 
     async fn send_request_vote(&self, target_node_id: u64, args: RequestVoteArgs) {

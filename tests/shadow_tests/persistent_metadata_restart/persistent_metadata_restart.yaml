@@ -15,7 +15,7 @@ hosts:
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/shadow_tests/single_node.json"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/persistent_metadata_restart/single_node.json"
         start_time: 1s
         shutdown_time: 2s
         shutdown_signal: SIGKILL
@@ -25,7 +25,7 @@ hosts:
           RUST_LOG: info
 
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/shadow_tests/single_node.json"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/persistent_metadata_restart/single_node.json"
         start_time: 3s
         expected_final_state: running
         environment:
