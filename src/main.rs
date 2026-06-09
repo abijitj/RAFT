@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Instantiate the MPSC Communication Channels
     let (inbound_tx, inbound_rx) = mpsc::channel(100);
-    let (outbound_tx, outbound_rx) = mpsc::channel(100);
+    let (outbound_tx, outbound_rx) = mpsc::channel(5000);
 
     // 3. Connect to peers and build the RaftClients map
     let mut peers_map = HashMap::new();
@@ -109,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // micro-retries in the network layer don't take too long
         let endpoint = Channel::from_shared(peer_address)?
             .connect_timeout(std::time::Duration::from_millis(50)) // Timeout for the initial TCP handshake
-            .timeout(std::time::Duration::from_millis(100));               // Max time allowed for ANY single RPC request
+            .timeout(std::time::Duration::from_millis(500));               // Max time allowed for ANY single RPC request
         
         // Connect lazily. Tonic won't actually hit the network until the first RPC is sent.
         // This is CRITICAL because if Node 2 is down on startup, Node 1 won't crash!

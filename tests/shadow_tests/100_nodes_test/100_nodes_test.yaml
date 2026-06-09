@@ -1,0 +1,216 @@
+general:
+  stop_time: 10m
+  bootstrap_end_time: 5s
+  model_unblocked_syscall_latency: true
+
+network:
+  graph:
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          label "Control Room"
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 1
+          label "Factory Floor A"
+          host_bandwidth_down "100 Mbit"
+          host_bandwidth_up "100 Mbit"
+        ]
+        node [
+          id 2
+          label "Factory Floor B"
+          host_bandwidth_down "100 Mbit"
+          host_bandwidth_up "100 Mbit"
+        ]
+        node [
+          id 3
+          label "Warehouse"
+          host_bandwidth_down "50 Mbit"
+          host_bandwidth_up "50 Mbit"
+        ]
+        node [
+          id 4
+          label "Outdoor Sensors"
+          host_bandwidth_down "10 Mbit"
+          host_bandwidth_up "1 Mbit"
+        ]
+        edge [
+          source 0
+          target 0
+          latency "1 ms"
+          jitter "0 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 1
+          latency "1 ms"
+          jitter "0 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 2
+          target 2
+          latency "1 ms"
+          jitter "0 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 3
+          target 3
+          latency "1 ms"
+          jitter "0 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 4
+          target 4
+          latency "1 ms"
+          jitter "0 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 1
+          latency "2 ms"
+          jitter "1 ms"
+          packet_loss 0.001
+        ]
+        edge [
+          source 0
+          target 2
+          latency "2 ms"
+          jitter "1 ms"
+          packet_loss 0.001
+        ]
+        edge [
+          source 0
+          target 3
+          latency "10 ms"
+          jitter "2 ms"
+          packet_loss 0.005
+        ]
+        edge [
+          source 0
+          target 4
+          latency "25 ms"
+          jitter "5 ms"
+          packet_loss 0.03
+        ]
+      ]
+
+hosts:
+  # --- Node 0: Control Room (Nodes 1-10) ---
+  node1: { network_node_id: 0, ip_addr: 11.0.0.1, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "1 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node2: { network_node_id: 0, ip_addr: 11.0.0.2, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "2 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node3: { network_node_id: 0, ip_addr: 11.0.0.3, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "3 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node4: { network_node_id: 0, ip_addr: 11.0.0.4, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "4 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node5: { network_node_id: 0, ip_addr: 11.0.0.5, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "5 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node6: { network_node_id: 0, ip_addr: 11.0.0.6, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "6 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node7: { network_node_id: 0, ip_addr: 11.0.0.7, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "7 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node8: { network_node_id: 0, ip_addr: 11.0.0.8, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "8 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 45s, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node9: { network_node_id: 0, ip_addr: 11.0.0.9, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "9 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node10: { network_node_id: 0, ip_addr: 11.0.0.10, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "10 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+
+  # --- Node 1: Factory Floor A (Nodes 11-40) ---
+  node11: { network_node_id: 1, ip_addr: 11.0.0.11, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "11 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node12: { network_node_id: 1, ip_addr: 11.0.0.12, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "12 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 2m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node13: { network_node_id: 1, ip_addr: 11.0.0.13, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "13 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node14: { network_node_id: 1, ip_addr: 11.0.0.14, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "14 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node15: { network_node_id: 1, ip_addr: 11.0.0.15, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "15 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node16: { network_node_id: 1, ip_addr: 11.0.0.16, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "16 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node17: { network_node_id: 1, ip_addr: 11.0.0.17, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "17 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node18: { network_node_id: 1, ip_addr: 11.0.0.18, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "18 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node19: { network_node_id: 1, ip_addr: 11.0.0.19, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "19 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node20: { network_node_id: 1, ip_addr: 11.0.0.20, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "20 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node21: { network_node_id: 1, ip_addr: 11.0.0.21, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "21 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node22: { network_node_id: 1, ip_addr: 11.0.0.22, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "22 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 1m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node23: { network_node_id: 1, ip_addr: 11.0.0.23, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "23 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node24: { network_node_id: 1, ip_addr: 11.0.0.24, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "24 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node25: { network_node_id: 1, ip_addr: 11.0.0.25, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "25 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node26: { network_node_id: 1, ip_addr: 11.0.0.26, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "26 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node27: { network_node_id: 1, ip_addr: 11.0.0.27, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "27 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node28: { network_node_id: 1, ip_addr: 11.0.0.28, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "28 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node29: { network_node_id: 1, ip_addr: 11.0.0.29, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "29 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node30: { network_node_id: 1, ip_addr: 11.0.0.30, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "30 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node31: { network_node_id: 1, ip_addr: 11.0.0.31, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "31 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node32: { network_node_id: 1, ip_addr: 11.0.0.32, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "32 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node33: { network_node_id: 1, ip_addr: 11.0.0.33, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "33 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 8m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node34: { network_node_id: 1, ip_addr: 11.0.0.34, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "34 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node35: { network_node_id: 1, ip_addr: 11.0.0.35, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "35 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node36: { network_node_id: 1, ip_addr: 11.0.0.36, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "36 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node37: { network_node_id: 1, ip_addr: 11.0.0.37, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "37 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node38: { network_node_id: 1, ip_addr: 11.0.0.38, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "38 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node39: { network_node_id: 1, ip_addr: 11.0.0.39, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "39 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node40: { network_node_id: 1, ip_addr: 11.0.0.40, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "40 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+
+  # --- Node 2: Factory Floor B (Nodes 41-70) ---
+  node41: { network_node_id: 2, ip_addr: 11.0.0.41, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "41 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node42: { network_node_id: 2, ip_addr: 11.0.0.42, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "42 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node43: { network_node_id: 2, ip_addr: 11.0.0.43, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "43 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node44: { network_node_id: 2, ip_addr: 11.0.0.44, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "44 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node45: { network_node_id: 2, ip_addr: 11.0.0.45, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "45 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node46: { network_node_id: 2, ip_addr: 11.0.0.46, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "46 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node47: { network_node_id: 2, ip_addr: 11.0.0.47, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "47 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 5m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node48: { network_node_id: 2, ip_addr: 11.0.0.48, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "48 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node49: { network_node_id: 2, ip_addr: 11.0.0.49, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "49 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node50: { network_node_id: 2, ip_addr: 11.0.0.50, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "50 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node51: { network_node_id: 2, ip_addr: 11.0.0.51, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "51 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node52: { network_node_id: 2, ip_addr: 11.0.0.52, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "52 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node53: { network_node_id: 2, ip_addr: 11.0.0.53, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "53 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node54: { network_node_id: 2, ip_addr: 11.0.0.54, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "54 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node55: { network_node_id: 2, ip_addr: 11.0.0.55, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "55 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node56: { network_node_id: 2, ip_addr: 11.0.0.56, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "56 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 15s, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node57: { network_node_id: 2, ip_addr: 11.0.0.57, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "57 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node58: { network_node_id: 2, ip_addr: 11.0.0.58, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "58 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node59: { network_node_id: 2, ip_addr: 11.0.0.59, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "59 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node60: { network_node_id: 2, ip_addr: 11.0.0.60, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "60 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node61: { network_node_id: 2, ip_addr: 11.0.0.61, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "61 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node62: { network_node_id: 2, ip_addr: 11.0.0.62, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "62 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node63: { network_node_id: 2, ip_addr: 11.0.0.63, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "63 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node64: { network_node_id: 2, ip_addr: 11.0.0.64, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "64 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node65: { network_node_id: 2, ip_addr: 11.0.0.65, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "65 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node66: { network_node_id: 2, ip_addr: 11.0.0.66, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "66 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node67: { network_node_id: 2, ip_addr: 11.0.0.67, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "67 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node68: { network_node_id: 2, ip_addr: 11.0.0.68, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "68 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 4m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node69: { network_node_id: 2, ip_addr: 11.0.0.69, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "69 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node70: { network_node_id: 2, ip_addr: 11.0.0.70, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "70 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+
+  # --- Node 3: Warehouse (Nodes 71-90) ---
+  node71: { network_node_id: 3, ip_addr: 11.0.0.71, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "71 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node72: { network_node_id: 3, ip_addr: 11.0.0.72, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "72 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node73: { network_node_id: 3, ip_addr: 11.0.0.73, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "73 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node74: { network_node_id: 3, ip_addr: 11.0.0.74, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "74 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node75: { network_node_id: 3, ip_addr: 11.0.0.75, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "75 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 30s, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node76: { network_node_id: 3, ip_addr: 11.0.0.76, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "76 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node77: { network_node_id: 3, ip_addr: 11.0.0.77, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "77 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node78: { network_node_id: 3, ip_addr: 11.0.0.78, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "78 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node79: { network_node_id: 3, ip_addr: 11.0.0.79, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "79 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node80: { network_node_id: 3, ip_addr: 11.0.0.80, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "80 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node81: { network_node_id: 3, ip_addr: 11.0.0.81, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "81 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node82: { network_node_id: 3, ip_addr: 11.0.0.82, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "82 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 7m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node83: { network_node_id: 3, ip_addr: 11.0.0.83, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "83 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node84: { network_node_id: 3, ip_addr: 11.0.0.84, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "84 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node85: { network_node_id: 3, ip_addr: 11.0.0.85, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "85 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node86: { network_node_id: 3, ip_addr: 11.0.0.86, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "86 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node87: { network_node_id: 3, ip_addr: 11.0.0.87, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "87 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node88: { network_node_id: 3, ip_addr: 11.0.0.88, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "88 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node89: { network_node_id: 3, ip_addr: 11.0.0.89, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "89 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node90: { network_node_id: 3, ip_addr: 11.0.0.90, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "90 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+
+  # --- Node 4: Outdoor Sensors (Nodes 91-100) ---
+  node91: { network_node_id: 4, ip_addr: 11.0.0.91, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "91 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node92: { network_node_id: 4, ip_addr: 11.0.0.92, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "92 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 20s, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node93: { network_node_id: 4, ip_addr: 11.0.0.93, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "93 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node94: { network_node_id: 4, ip_addr: 11.0.0.94, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "94 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node95: { network_node_id: 4, ip_addr: 11.0.0.95, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "95 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node96: { network_node_id: 4, ip_addr: 11.0.0.96, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "96 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node97: { network_node_id: 4, ip_addr: 11.0.0.97, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "97 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node98: { network_node_id: 4, ip_addr: 11.0.0.98, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "98 /workspaces/RAFT/cluster.json", start_time: 1s, shutdown_time: 6m, shutdown_signal: SIGKILL, expected_final_state: {signaled: SIGKILL}, environment: { RUST_LOG: debug } }] } # Random Kill
+  node99: { network_node_id: 4, ip_addr: 11.0.0.99, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "99 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
+  node100: { network_node_id: 4, ip_addr: 11.0.0.100, processes: [{ path: /workspaces/RAFT/target/release/raft, args: "100 /workspaces/RAFT/cluster.json", start_time: 1s, expected_final_state: running, environment: { RUST_LOG: debug } }] }
