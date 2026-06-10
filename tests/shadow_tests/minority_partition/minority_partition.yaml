@@ -1,7 +1,14 @@
 general:
-  stop_time: 60s
+  stop_time: 30s
   bootstrap_end_time: 2s
   model_unblocked_syscall_latency: true
+
+# 5 nodes split into a majority partition (nodes 1-3, network 0) and a minority
+# partition (nodes 4-5, network 1). The two networks cannot communicate.
+# Expected: nodes 1-3 elect a leader and can commit. Nodes 4-5 keep timing out
+# and incrementing their term but never commit anything since they can't reach
+# a majority. At the end, the invariant checker verifies no entry was committed
+# on only the minority side.
 
 network:
   graph:
@@ -14,7 +21,7 @@ hosts:
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/tests/shadow_tests/node_churn/cluster.json --write-at-second 10 --write-value true"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json --write-at-second 10 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -25,7 +32,7 @@ hosts:
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/node_churn/cluster.json --write-at-second 25 --write-value false"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -36,36 +43,30 @@ hosts:
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/node_churn/cluster.json --write-at-second 3 --write-value true"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json"
         start_time: 1s
-        shutdown_time: 5s
-        shutdown_signal: SIGKILL
-        expected_final_state: {signaled: SIGKILL}
+        expected_final_state: running
         environment:
           RUST_LOG: info
 
   node4:
-    network_node_id: 0
+    network_node_id: 1
     ip_addr: 11.0.0.4
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "4 /workspaces/RAFT/tests/shadow_tests/node_churn/cluster.json"
+        args: "4 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json"
         start_time: 1s
-        shutdown_time: 10s
-        shutdown_signal: SIGKILL
-        expected_final_state: {signaled: SIGKILL}
+        expected_final_state: running
         environment:
           RUST_LOG: info
 
   node5:
-    network_node_id: 0
+    network_node_id: 1
     ip_addr: 11.0.0.5
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "5 /workspaces/RAFT/tests/shadow_tests/node_churn/cluster.json"
+        args: "5 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json"
         start_time: 1s
-        shutdown_time: 15s
-        shutdown_signal: SIGKILL
-        expected_final_state: {signaled: SIGKILL}
+        expected_final_state: running
         environment:
           RUST_LOG: info

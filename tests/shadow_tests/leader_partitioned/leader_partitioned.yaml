@@ -1,0 +1,77 @@
+general:
+  stop_time: 30s
+  bootstrap_end_time: 2s
+  model_unblocked_syscall_latency: true
+
+# Node 1 wins the initial election (seeded RNG gives it the shortest timeout).
+# At t=5s it is effectively partitioned into a minority by moving nodes 2-4 to
+# a separate network. Node 1 can no longer reach a majority so it cannot commit.
+# Nodes 2-4 (majority) must elect a new leader among themselves.
+# We approximate the partition by giving node 1 its own network_node_id from the
+# start — since Shadow network topology is static, we instead kill node 1 at t=5s
+# (simulating it becoming unreachable) so nodes 2-4 must recover.
+#
+# For a true split-brain test we put node1 on network 1 (isolated) from the start
+# so it can never win an election, and nodes 2-5 on network 0 (majority).
+# A write is injected on node 2 at t=10s; it must be committed by the majority.
+
+network:
+  graph:
+    type: 1_gbit_switch
+    latency: 10ms
+
+hosts:
+  node1:
+    network_node_id: 1
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-second 10 --write-value true"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  node4:
+    network_node_id: 0
+    ip_addr: 11.0.0.4
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "4 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  node5:
+    network_node_id: 0
+    ip_addr: 11.0.0.5
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "5 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info

@@ -9,18 +9,13 @@ network:
     latency: 30ms
     jitter: 20ms
 
-# 7 nodes. Majority = 4.
-# Staggered writes from multiple nodes test that only the leader accepts writes
-# and that the cluster converges. Multiple crash/restart waves test availability.
-# At t=120s we check all WALs agree on invariants.
-
 hosts:
   node1:
     network_node_id: 0
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-second 10 --write-value true"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -31,7 +26,7 @@ hosts:
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-second 30 --write-value false"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -44,9 +39,7 @@ hosts:
       - path: /workspaces/RAFT/target/release/raft
         args: "3 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-second 50 --write-value true"
         start_time: 1s
-        shutdown_time: 20s
-        shutdown_signal: SIGKILL
-        expected_final_state: {signaled: SIGKILL}
+        expected_final_state: running
         environment:
           RUST_LOG: info
 
@@ -81,9 +74,11 @@ hosts:
     ip_addr: 11.0.0.6
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "6 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json"
+        args: "6 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-second 30 --write-value false"
         start_time: 1s
-        expected_final_state: running
+        shutdown_time: 60s
+        shutdown_signal: SIGKILL
+        expected_final_state: {signaled: SIGKILL}
         environment:
           RUST_LOG: info
 
@@ -92,8 +87,10 @@ hosts:
     ip_addr: 11.0.0.7
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "7 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json"
+        args: "7 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json  --write-at-second 10 --write-value true"
         start_time: 1s
-        expected_final_state: running
+        shutdown_time: 20s
+        shutdown_signal: SIGKILL
+        expected_final_state: {signaled: SIGKILL}
         environment:
           RUST_LOG: info
