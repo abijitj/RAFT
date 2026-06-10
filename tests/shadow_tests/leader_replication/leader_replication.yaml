@@ -15,7 +15,6 @@ hosts:
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        # Just pass the ID and the path to the shared config
         args: "1 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-second 4 --write-value true"
         start_time: 1s
         expected_final_state: running
@@ -38,7 +37,7 @@ hosts:
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-second 4 --write-value true"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-second 3 --write-value false --write-at-second 4 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
