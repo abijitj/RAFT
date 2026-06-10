@@ -1,6 +1,6 @@
 general:
-  stop_time: 10s
-  bootstrap_end_time: 1s
+  stop_time: 7s
+  bootstrap_end_time: 500ms
 
 network:
   graph:
@@ -15,18 +15,18 @@ hosts:
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-ms 4000 --write-value true"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json" 
         start_time: 1s
         expected_final_state: running
         environment:
-          RUST_LOG: debug
+          RUST_LOG: debug 
 
   node2:
     network_node_id: 0
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-ms 4000 --write-value true"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --block 3 --from 2002 --to 2500" 
         start_time: 1s
         expected_final_state: running
         environment:
@@ -37,7 +37,7 @@ hosts:
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-ms 3000 --write-value false --write-at-ms 4000 --write-value true"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_replication/cluster.json --write-at-ms 2000 --write-value false" 
         start_time: 1s
         expected_final_state: running
         environment:
