@@ -44,9 +44,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let my_id: u64 = args[1].parse().expect("Node ID must be an integer");
     let config_path = &args[2];
 
-    // Optional Time-Triggered Test State values
-    let mut write_at_second: Option<u64> = None;
-    let mut write_value: Option<bool> = None;
+    // Vectors to hold multiple time-triggered injector states
+    let mut write_seconds: Vec<u64> = Vec::new();
+    let mut write_values: Vec<bool> = Vec::new();
 
     // Parse the optional arguments if present
     let mut i = 3;
@@ -54,7 +54,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match args[i].as_str() {
             "--write-at-second" => {
                 if i + 1 < args.len() {
-                    write_at_second = Some(args[i + 1].parse().expect("Seconds must be an integer"));
+                    let sec = args[i + 1].parse().expect("Seconds must be an integer");
+                    write_seconds.push(sec);
                     i += 2;
                 } else {
                     eprintln!("Error: --write-at-second requires a value");
@@ -63,7 +64,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "--write-value" => {
                 if i + 1 < args.len() {
-                    write_value = Some(args[i + 1].parse().expect("Value must be true or false"));
+                    let val = args[i + 1].parse().expect("Value must be true or false");
+                    write_values.push(val);
                     i += 2;
                 } else {
                     eprintln!("Error: --write-value requires a boolean value");
@@ -75,6 +77,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
         }
+    }
+
+    // Safety check: ensure every timestamp has a corresponding value matching it
+    if write_seconds.len() != write_values.len() {
+        eprintln!(
+            "Error: Mismatch between scheduled writes count. Found {} timestamps and {} values.",
+            write_seconds.len(),
+            write_values.len()
+        );
+        std::process::exit(1);
     }
 
     let config_data = fs::read_to_string(config_path)
@@ -138,14 +150,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 8. Spawn background execution tasks
 
-    // Simulated Client Injector (Only runs if flags are passed)
-    if let (Some(sec), Some(val)) = (write_at_second, write_value) {
+    // Simulated Client Injectors (Spawns a task for every paired time and value)
+    for (sec, val) in write_seconds.into_iter().zip(write_values.into_iter()) {
         let injector_tx = cloned_tx.clone();
         info!("Node {} scheduling a simulated state write to `{}` at virtual second {}", my_id, val, sec);
         
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(sec)).await;
-            info!("Node {} simulated client injector woke up. Injecting TestClientRequest...", my_id);
+            info!("Node {} simulated client injector woke up. Injecting TestClientRequest (val: {})...", my_id, val);
             
             if injector_tx.send(RaftEvent::TestClientRequest { new_value: val }).await.is_err() {
                 warn!("Node {} failed to inject TestClientRequest; core loop channel closed", my_id);
