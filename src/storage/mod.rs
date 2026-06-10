@@ -1,41 +1,37 @@
 pub trait WriteAheadLog: Send + Sync {
-    /// Appends a new command to the log
     fn append_entry(&mut self, index: u64, term: u64, command: &[u8]) -> Result<(), String>;
-    
-    /// Retrieves a command from the log by its index
     fn get_entry(&self, index: u64) -> Result<Option<(u64, Vec<u8>)>, String>;
-
-    /// Returns the index of the final log entry, or zero when the log is empty.
     fn log_length(&self) -> Result<u64, String>;
-    
-    /// Saves the Raft metadata that must survive a crash
     fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String>;
-
-    /// Loads the persisted term and vote, using Raft's initial values when absent.
     fn load_metadata(&self) -> Result<(u64, Option<u32>), String>;
-    
-    /// Discards all entries up to and including the given index
     fn truncate_log(&mut self, last_included_index: u64) -> Result<(), String>;
+    fn save_snapshot(&mut self, last_included_index: u64, last_included_term: u64, state_machine_value: bool) -> Result<(), String>;
+    fn load_snapshot(&self) -> Result<Option<Snapshot>, String>;
 }
 
-// Compile the Unix redb implementation if not targeting ESP32
+#[derive(Debug, Clone)]
+pub struct Snapshot {
+    pub last_included_index: u64,
+    pub last_included_term: u64,
+    pub state_machine_value: bool,
+}
+
 #[cfg(not(target_os = "espidf"))]
 pub mod log;
 
-// ESP32 NVS implementation if targeting ESP32
 #[cfg(target_os = "espidf")]
 pub mod esp_nvs;
 
 #[cfg(test)]
 pub mod tests {
-    use super::WriteAheadLog;
+    use super::{WriteAheadLog, Snapshot};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
-    /// Simple in-memory mock storage for tests
     pub struct MockWal {
         log: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
         metadata: Arc<Mutex<HashMap<String, u64>>>,
+        snapshot: Arc<Mutex<Option<Snapshot>>>,
     }
 
     impl MockWal {
@@ -43,6 +39,7 @@ pub mod tests {
             Self {
                 log: Arc::new(Mutex::new(HashMap::new())),
                 metadata: Arc::new(Mutex::new(HashMap::new())),
+                snapshot: Arc::new(Mutex::new(None)),
             }
         }
     }
@@ -74,13 +71,7 @@ pub mod tests {
         }
 
         fn log_length(&self) -> Result<u64, String> {
-            Ok(self
-                .metadata
-                .lock()
-                .unwrap()
-                .get("length")
-                .copied()
-                .unwrap_or(0))
+            Ok(self.metadata.lock().unwrap().get("length").copied().unwrap_or(0))
         }
 
         fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String> {
@@ -105,18 +96,27 @@ pub mod tests {
             let mut log = self.log.lock().unwrap();
             log.retain(|&k, _| k > last_included_index);
             let length = log.keys().copied().max().unwrap_or(0);
-            self.metadata
-                .lock()
-                .unwrap()
-                .insert("length".to_string(), length);
+            self.metadata.lock().unwrap().insert("length".to_string(), length);
             Ok(())
+        }
+
+        fn save_snapshot(&mut self, last_included_index: u64, last_included_term: u64, state_machine_value: bool) -> Result<(), String> {
+            *self.snapshot.lock().unwrap() = Some(Snapshot {
+                last_included_index,
+                last_included_term,
+                state_machine_value,
+            });
+            Ok(())
+        }
+
+        fn load_snapshot(&self) -> Result<Option<Snapshot>, String> {
+            Ok(self.snapshot.lock().unwrap().clone())
         }
     }
 
     #[test]
     fn log_length_tracks_appended_entries() {
         let mut wal = MockWal::new();
-
         assert_eq!(wal.log_length().unwrap(), 0);
         wal.append_entry(1, 1, &[1]).unwrap();
         assert_eq!(wal.log_length().unwrap(), 1);
@@ -127,9 +127,19 @@ pub mod tests {
     #[test]
     fn metadata_round_trips() {
         let mut wal = MockWal::new();
-
         assert_eq!(wal.load_metadata().unwrap(), (0, None));
         wal.save_metadata(7, Some(3)).unwrap();
         assert_eq!(wal.load_metadata().unwrap(), (7, Some(3)));
+    }
+
+    #[test]
+    fn snapshot_round_trips() {
+        let mut wal = MockWal::new();
+        assert!(wal.load_snapshot().unwrap().is_none());
+        wal.save_snapshot(5, 2, true).unwrap();
+        let snap = wal.load_snapshot().unwrap().unwrap();
+        assert_eq!(snap.last_included_index, 5);
+        assert_eq!(snap.last_included_term, 2);
+        assert!(snap.state_machine_value);
     }
 }

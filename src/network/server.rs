@@ -12,6 +12,7 @@ use crate::core::events::{
     RaftEvent, 
     RequestVoteArgs as CoreVoteArgs, 
     AppendEntriesArgs as CoreAppendArgs,
+    InstallSnapshotArgs as CoreSnapshotArgs,
     LogEntry as CoreLogEntry,
 };
 
@@ -116,6 +117,44 @@ impl pb::raft_server::Raft for RaftServerImpl {
             }
             Err(_) => {
                 error!("Failed to reply to AppendEntries: core dropped the channel");
+                Err(Status::internal("Core dropped the reply channel"))
+            }
+        }
+    }
+
+    async fn install_snapshot(
+        &self,
+        request: Request<pb::InstallSnapshotArgs>,
+    ) -> Result<Response<pb::InstallSnapshotReply>, Status> {
+        let req = request.into_inner();
+        debug!("Received InstallSnapshot from leader {} for term {}", req.leader_id, req.term);
+
+        let core_args = CoreSnapshotArgs {
+            term: req.term,
+            leader_id: req.leader_id,
+            last_included_index: req.last_included_index,
+            last_included_term: req.last_included_term,
+            state_machine_value: req.state_machine_value,
+        };
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        let event = RaftEvent::InstallSnapshot {
+            args: core_args,
+            reply_channel: reply_tx,
+        };
+
+        if self.tx_to_core.send(event).await.is_err() {
+            error!("Failed to route InstallSnapshot to core: core loop is down");
+            return Err(Status::internal("Raft core loop is down"));
+        }
+
+        match reply_rx.await {
+            Ok(core_reply) => {
+                let proto_reply = pb::InstallSnapshotReply { term: core_reply.term };
+                Ok(Response::new(proto_reply))
+            }
+            Err(_) => {
+                error!("Failed to reply to InstallSnapshot: core dropped the channel");
                 Err(Status::internal("Core dropped the reply channel"))
             }
         }

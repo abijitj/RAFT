@@ -1,6 +1,6 @@
 use crate::core::events::{
-    AppendEntriesArgs, AppendEntriesReply, LogEntry, OutboundCommand, RaftEvent, RequestVoteArgs,
-    RequestVoteReply,
+    AppendEntriesArgs, AppendEntriesReply, InstallSnapshotArgs, InstallSnapshotReply,
+    LogEntry, OutboundCommand, RaftEvent, RequestVoteArgs, RequestVoteReply,
 };
 use crate::storage::WriteAheadLog;
 use log::{debug, error, info, warn};
@@ -15,6 +15,7 @@ use rand::rngs::StdRng;
 const MAX_NODES: usize = 100;
 const MIN_ELECTION_TIMEOUT_MS: u64 = 150;
 const MAX_ELECTION_TIMEOUT_MS: u64 = 300;
+const COMPACTION_THRESHOLD: u64 = 50;
 
 /// The operational states a Raft node can occupy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +49,8 @@ pub struct RaftCore {
     commit_index: u64,
     last_applied: u64,
     state_machine_value: bool,
+    snapshot_index: u64,
+    snapshot_term: u64,
     known_leader_id: Option<u64>,
     election_deadline: Instant,
 
@@ -113,6 +116,19 @@ impl RaftCore {
             node_id, current_term, voted_for
         );
 
+        let (snapshot_index, snapshot_term, state_machine_value) = storage
+            .load_snapshot()
+            .unwrap_or_else(|e| {
+                error!("Failed to load snapshot: {}", e);
+                panic!("failed to load snapshot: {e}");
+            })
+            .map(|s| (s.last_included_index, s.last_included_term, s.state_machine_value))
+            .unwrap_or((0, 0, false));
+
+        if snapshot_index > 0 {
+            info!("Restored snapshot on Node {}: last_included_index={} last_included_term={} value={}", node_id, snapshot_index, snapshot_term, state_machine_value);
+        }
+
         Self {
             inbound_rx,
             inbound_tx,
@@ -123,9 +139,11 @@ impl RaftCore {
             voted_for: voted_for.map(u64::from),
             storage,
             state: NodeState::Follower,
-            commit_index: 0,
-            last_applied: 0,
-            state_machine_value: false,
+            commit_index: snapshot_index,
+            last_applied: snapshot_index,
+            state_machine_value,
+            snapshot_index,
+            snapshot_term,
             known_leader_id: None,
             election_deadline: Self::new_election_deadline(node_id, current_term),
             votes_received: HashSet::new(),
@@ -187,6 +205,17 @@ impl RaftCore {
                 from_node_id,
                 result,
             } => self.handle_append_entries_response(from_node_id, result).await,
+            RaftEvent::InstallSnapshot {
+                args,
+                reply_channel,
+            } => {
+                let reply = self.handle_install_snapshot(args);
+                let _ = reply_channel.send(reply);
+            }
+            RaftEvent::InstallSnapshotResponse {
+                from_node_id,
+                result,
+            } => self.handle_install_snapshot_response(from_node_id, result).await,
             RaftEvent::ClientCommand {
                 new_value,
                 reply_channel,
@@ -388,6 +417,7 @@ impl RaftCore {
         if args.leader_commit > self.commit_index {
             self.commit_index = args.leader_commit.min(self.last_log_index());
             self.apply_committed_entries();
+            self.maybe_compact();
         }
 
         AppendEntriesReply {
@@ -516,6 +546,12 @@ impl RaftCore {
 
     async fn send_append_entries_to_peer(&mut self, target_node_id: u64) {
         let next_index = self.next_index.get(&target_node_id).copied().unwrap_or(1);
+
+        // If the follower needs entries we've already compacted, send snapshot instead
+        if next_index <= self.snapshot_index {
+            self.send_snapshot_to_peer(target_node_id).await;
+            return;
+        }
         let prev_log_index = next_index.saturating_sub(1);
         let prev_log_term = self.term_at(prev_log_index).unwrap_or(0);
         let entries = self.entries_from(next_index);
@@ -628,6 +664,7 @@ impl RaftCore {
         if self.commit_index != old_commit_index {
             info!("Leader updated commit_index to {}", self.commit_index);
             self.apply_committed_entries();
+            self.maybe_compact();
         }
     }
 
@@ -751,7 +788,9 @@ impl RaftCore {
         if index == 0 {
             return Some(0);
         }
-
+        if index == self.snapshot_index {
+            return Some(self.snapshot_term);
+        }
         self.entry_at(index).map(|entry| entry.term)
     }
 
@@ -820,6 +859,140 @@ impl RaftCore {
         Instant::now() + Duration::from_millis(final_timeout_ms)
     }
 
+    fn maybe_compact(&mut self) {
+        if self.last_applied < self.snapshot_index + COMPACTION_THRESHOLD {
+            return;
+        }
+        let compact_up_to = self.last_applied;
+        let compact_term = self.term_at(compact_up_to).unwrap_or(self.snapshot_term);
+        info!("Compacting log up to index {} on Node {}", compact_up_to, self.node_id);
+        if let Err(e) = self.storage.save_snapshot(
+            compact_up_to,
+            compact_term,
+            self.state_machine_value,
+        ) {
+            error!("Failed to save snapshot at index {}: {}", compact_up_to, e);
+            panic!("failed to save snapshot at index {compact_up_to}: {e}");
+        }
+        if let Err(e) = self.storage.truncate_log(compact_up_to) {
+            error!("Failed to truncate log to index {}: {}", compact_up_to, e);
+            panic!("failed to truncate log to index {compact_up_to}: {e}");
+        }
+        self.snapshot_index = compact_up_to;
+        self.snapshot_term = compact_term;
+        info!("Compaction complete. snapshot_index={} on Node {}", self.snapshot_index, self.node_id);
+    }
+
+    fn handle_install_snapshot(&mut self, args: InstallSnapshotArgs) -> InstallSnapshotReply {
+        if args.term < self.current_term {
+            return InstallSnapshotReply { term: self.current_term };
+        }
+
+        if args.term > self.current_term || self.state != NodeState::Follower {
+            self.become_follower(args.term);
+        }
+
+        self.known_leader_id = Some(args.leader_id);
+        self.reset_election_timer();
+
+        // Only install if it's newer than our current snapshot
+        if args.last_included_index <= self.snapshot_index {
+            return InstallSnapshotReply { term: self.current_term };
+        }
+
+        info!(
+            "Installing snapshot from leader {}: last_included_index={} value={}",
+            args.leader_id, args.last_included_index, args.state_machine_value
+        );
+
+        if let Err(e) = self.storage.save_snapshot(
+            args.last_included_index,
+            args.last_included_term,
+            args.state_machine_value,
+        ) {
+            error!("Failed to persist snapshot: {}", e);
+            panic!("failed to persist snapshot: {e}");
+        }
+
+        if let Err(e) = self.storage.truncate_log(args.last_included_index) {
+            error!("Failed to truncate log after snapshot install: {}", e);
+            panic!("failed to truncate log after snapshot install: {e}");
+        }
+
+        self.snapshot_index = args.last_included_index;
+        self.snapshot_term = args.last_included_term;
+        self.state_machine_value = args.state_machine_value;
+        self.commit_index = self.commit_index.max(args.last_included_index);
+        self.last_applied = self.last_applied.max(args.last_included_index);
+
+        InstallSnapshotReply { term: self.current_term }
+    }
+
+    async fn handle_install_snapshot_response(
+        &mut self,
+        from_node_id: u64,
+        result: Result<InstallSnapshotReply, String>,
+    ) {
+        let Ok(reply) = result else {
+            debug!("InstallSnapshot to Node {} failed or timed out", from_node_id);
+            return;
+        };
+
+        if reply.term > self.current_term {
+            self.become_follower(reply.term);
+            return;
+        }
+
+        if self.state != NodeState::Leader || reply.term != self.current_term {
+            return;
+        }
+
+        // After a successful snapshot install the follower is caught up to snapshot_index
+        self.match_index.insert(from_node_id, self.snapshot_index);
+        self.next_index.insert(from_node_id, self.snapshot_index + 1);
+        self.update_commit_index();
+    }
+
+    async fn send_snapshot_to_peer(&mut self, target_node_id: u64) {
+        let args = InstallSnapshotArgs {
+            term: self.current_term,
+            leader_id: self.node_id,
+            last_included_index: self.snapshot_index,
+            last_included_term: self.snapshot_term,
+            state_machine_value: self.state_machine_value,
+        };
+
+        let (result_tx, result_rx) = tokio::sync::oneshot::channel();
+        let command = OutboundCommand::SendInstallSnapshot {
+            target_node_id,
+            args,
+            result_channel: result_tx,
+        };
+
+        if self.outbound_tx.send(command).await.is_err() {
+            error!("Failed to send InstallSnapshot to outbound channel");
+            return;
+        }
+
+        self.forward_install_snapshot_response(target_node_id, result_rx);
+    }
+
+    fn forward_install_snapshot_response(
+        &self,
+        from_node_id: u64,
+        result_rx: tokio::sync::oneshot::Receiver<Result<InstallSnapshotReply, String>>,
+    ) {
+        let Some(inbound_tx) = self.inbound_tx.clone() else { return; };
+        tokio::spawn(async move {
+            let result = result_rx
+                .await
+                .unwrap_or_else(|_| Err("InstallSnapshot response channel closed".to_string()));
+            let _ = inbound_tx
+                .send(RaftEvent::InstallSnapshotResponse { from_node_id, result })
+                .await;
+        });
+    }
+
     fn persist_term_and_vote(&mut self) {
         // Convert Option<u64> to Option<u32> for storage API
         let voted_for_u32 = self.voted_for.map(|id| id as u32);
@@ -884,6 +1057,9 @@ mod tests {
                 OutboundCommand::SendAppendEntries { .. } => {
                     panic!("expected RequestVote command");
                 }
+                OutboundCommand::SendInstallSnapshot { .. } => {
+                    panic!("expected RequestVote command");
+                }
             }
         }
     }
@@ -895,6 +1071,7 @@ mod tests {
                 OutboundCommand::SendRequestVote { .. } => {
                     panic!("expected AppendEntries command");
                 }
+                OutboundCommand::SendInstallSnapshot { .. } => {}
             }
         }
     }
@@ -964,6 +1141,9 @@ mod tests {
                 assert_eq!(args.candidate_id, 1);
             }
             OutboundCommand::SendAppendEntries { .. } => {
+                panic!("expected RequestVote command");
+            }
+            OutboundCommand::SendInstallSnapshot { .. } => {
                 panic!("expected RequestVote command");
             }
         }

@@ -141,6 +141,53 @@ impl RaftClientWorker {
                         }
                     });
                 }
+                OutboundCommand::SendInstallSnapshot { target_node_id, args, result_channel } => {
+                    let Some(mut client) = self.peers.get(&target_node_id).cloned() else {
+                        error!("Cannot send InstallSnapshot: Unknown target node ID {}", target_node_id);
+                        let _ = result_channel.send(Err("Unknown target node ID".to_string()));
+                        continue;
+                    };
+
+                    let proto_args = proto::InstallSnapshotArgs {
+                        term: args.term,
+                        leader_id: args.leader_id,
+                        last_included_index: args.last_included_index,
+                        last_included_term: args.last_included_term,
+                        state_machine_value: args.state_machine_value,
+                    };
+
+                    debug!("Sending InstallSnapshot to Node {} (last_included_index: {})", target_node_id, args.last_included_index);
+
+                    tokio::spawn(async move {
+                        let mut attempts = 0;
+                        loop {
+                            match client.install_snapshot(proto_args.clone()).await {
+                                Ok(response) => {
+                                    let res = response.into_inner();
+                                    debug!("Received InstallSnapshot reply from Node {}: term={}", target_node_id, res.term);
+                                    let core_reply = crate::core::events::InstallSnapshotReply {
+                                        term: res.term,
+                                    };
+                                    let _ = result_channel.send(Ok(core_reply));
+                                    break;
+                                }
+                                Err(status) => {
+                                    attempts += 1;
+                                    warn!("InstallSnapshot to Node {} failed (attempt {}): {}", target_node_id, attempts, status.message());
+                                    if attempts >= MAX_MICRO_RETRIES || !is_transient_error(&status) {
+                                        error!("InstallSnapshot to Node {} aborted after {} attempts: {}", target_node_id, attempts, status.message());
+                                        let _ = result_channel.send(Err(format!(
+                                            "gRPC Error after {} attempts: {}",
+                                            attempts, status.message()
+                                        )));
+                                        break;
+                                    }
+                                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                                }
+                            }
+                        }
+                    });
+                }
             }
         }
     }
@@ -216,6 +263,15 @@ mod tests {
             Ok(Response::new(AppendEntriesReply {
                 term: request.into_inner().term,
                 success: true,
+            }))
+        }
+
+        async fn install_snapshot(
+            &self,
+            request: Request<proto::InstallSnapshotArgs>,
+        ) -> Result<Response<proto::InstallSnapshotReply>, Status> {
+            Ok(Response::new(proto::InstallSnapshotReply {
+                term: request.into_inner().term,
             }))
         }
     }

@@ -66,6 +66,27 @@ impl WriteAheadLog for FailingWal {
             Ok(())
         }
     }
+
+    fn save_snapshot(
+        &mut self,
+        _last_included_index: u64,
+        _last_included_term: u64,
+        _state_machine_value: bool,
+    ) -> Result<(), String> {
+        if self.fail_writes {
+            Err("injected snapshot write failure".to_string())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn load_snapshot(&self) -> Result<Option<raft::storage::Snapshot>, String> {
+        if self.fail_reads {
+            Err("injected snapshot read failure".to_string())
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[tokio::main]
