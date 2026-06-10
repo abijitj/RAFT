@@ -12,8 +12,37 @@ general:
 
 network:
   graph:
-    type: 1_gbit_switch
-    latency: 10ms
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 1
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        edge [
+          source 0
+          target 0
+          latency "10 ms"
+        ]
+        edge [
+          source 1
+          target 1
+          latency "10 ms"
+        ]
+        edge [
+          source 0
+          target 1
+          latency "10 ms"
+          packet_loss 1.0
+        ]
+      ]
 
 hosts:
   node1:
@@ -21,7 +50,7 @@ hosts:
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "1 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json --write-at-second 10 --write-value true"
+        args: "1 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -43,7 +72,7 @@ hosts:
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/minority_partition/cluster.json --write-at-second 10 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
