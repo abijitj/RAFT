@@ -72,19 +72,40 @@ fi
 TEST_NAME=$(basename "$FILE_NAME" .yaml)
 ARCHIVE_DIR="runs/shadow_tests/${TEST_NAME}"
 
-echo "Archiving results to ${ARCHIVE_DIR}/shadow_data.tar.gz..."
 mkdir -p "$ARCHIVE_DIR"
+
 echo "Dumping WAL contents for each node..."
 for wal_dir in shadow.data/hosts/*/; do
   host=$(basename "$wal_dir")
-  raft_data=$(find "$wal_dir" -name "raft_data_*" -type f | head -1)
+  raft_data=$(find "$wal_dir" -name "raft_data_*" | head -1)
   if [ -n "$raft_data" ]; then
     node_dir="${ARCHIVE_DIR}/${host}"
     mkdir -p "$node_dir"
     echo "  Dumping WAL for $host..."
-    cargo run --release --bin wal_dump -- "$raft_data" > "${node_dir}/${host}_wal.txt" 2>/dev/null || echo "    (dump failed for $host)"
+    cargo run --release --bin wal_dump -- "$raft_data" > "${node_dir}/${host}_wal.txt" 2>/dev/null \
+      || echo "    (dump failed for $host)"
   fi
 done
-tar -czf "${ARCHIVE_DIR}/shadow_data.tar.gz" shadow.data shadow.log
+
+echo "Checking Raft invariants..."
+if cargo run --release --bin invariant_checker -- shadow.data; then
+  echo "PASS: all Raft invariants hold"
+else
+  echo "FAIL: invariant violation detected" >&2
+  INVARIANT_FAILED=1
+fi
+
+echo "Copying shadow.data and shadow.log to the runs folder..."
+cp -r shadow.data "${ARCHIVE_DIR}/"
+cp shadow.log "${ARCHIVE_DIR}/"
+
+echo "Archiving results to ${ARCHIVE_DIR}/shadow_data.tar.gz..."
+# Create the tar file temporarily outside the archive dir to avoid including the tarball recursively in itself
+tar -czf "${ARCHIVE_DIR}.tar.gz" -C "${ARCHIVE_DIR}" .
+mv "${ARCHIVE_DIR}.tar.gz" "${ARCHIVE_DIR}/shadow_data.tar.gz"
 
 echo "Archive successfully created!"
+
+if [ -n "${INVARIANT_FAILED:-}" ]; then
+  exit 1
+fi
