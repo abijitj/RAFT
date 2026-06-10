@@ -60,6 +60,10 @@ pub struct RaftCore {
     match_index: HashMap<u64, u64>,
     last_sent_index: HashMap<u64, u64>,
     pending_client_replies: HashMap<u64, oneshot::Sender<Result<(), String>>>,
+    /// Peers for which an InstallSnapshot RPC is currently in-flight.
+    /// Prevents redundant snapshots from being sent on every heartbeat tick
+    /// while the first one is still awaiting a response.
+    snapshot_in_flight: HashSet<u64>,
 }
 
 impl RaftCore {
@@ -151,6 +155,7 @@ impl RaftCore {
             match_index: HashMap::new(),
             last_sent_index: HashMap::new(),
             pending_client_replies: HashMap::new(),
+            snapshot_in_flight: HashSet::new(),
         }
     }
 
@@ -290,6 +295,7 @@ impl RaftCore {
         self.next_index.clear();
         self.match_index.clear();
         self.last_sent_index.clear();
+        self.snapshot_in_flight.clear();
     }
 
     async fn become_leader(&mut self) {
@@ -403,6 +409,21 @@ impl RaftCore {
 
         self.known_leader_id = Some(args.leader_id);
         self.reset_election_timer();
+
+        // Reject if prev_log_index is behind our snapshot: we've already compacted
+        // those entries and cannot safely accept a batch that starts before them.
+        // The leader will see the failure, find next_index[us] <= snapshot_index,
+        // and re-send via InstallSnapshot instead.
+        if args.prev_log_index < self.snapshot_index {
+            warn!(
+                "Rejecting AppendEntries from Node {}: prev_log_index={} is behind snapshot_index={}",
+                args.leader_id, args.prev_log_index, self.snapshot_index
+            );
+            return AppendEntriesReply {
+                term: self.current_term,
+                success: false,
+            };
+        }
 
         if !self.log_contains(args.prev_log_index, args.prev_log_term) {
             warn!("Rejecting AppendEntries from Node {} (log mismatch at index {})", args.leader_id, args.prev_log_index);
@@ -933,6 +954,8 @@ impl RaftCore {
         from_node_id: u64,
         result: Result<InstallSnapshotReply, String>,
     ) {
+        self.snapshot_in_flight.remove(&from_node_id);
+
         let Ok(reply) = result else {
             debug!("InstallSnapshot to Node {} failed or timed out", from_node_id);
             return;
@@ -954,6 +977,11 @@ impl RaftCore {
     }
 
     async fn send_snapshot_to_peer(&mut self, target_node_id: u64) {
+        // Don't send a second snapshot while one is already in-flight for this peer.
+        if self.snapshot_in_flight.contains(&target_node_id) {
+            return;
+        }
+
         let args = InstallSnapshotArgs {
             term: self.current_term,
             leader_id: self.node_id,
@@ -973,6 +1001,12 @@ impl RaftCore {
             error!("Failed to send InstallSnapshot to outbound channel");
             return;
         }
+
+        // Hold next_index at snapshot_index so subsequent heartbeat ticks don't
+        // race ahead with AppendEntries while the snapshot RPC is in-flight.
+        // handle_install_snapshot_response will advance it to snapshot_index + 1.
+        self.next_index.insert(target_node_id, self.snapshot_index);
+        self.snapshot_in_flight.insert(target_node_id);
 
         self.forward_install_snapshot_response(target_node_id, result_rx);
     }

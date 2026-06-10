@@ -1,0 +1,102 @@
+# Log Compaction Shadow Test
+#
+# PURPOSE
+# -------
+# Verify that Raft log compaction (snapshotting) works correctly end-to-end:
+#
+#   1. TRIGGER COMPACTION ON THE HEALTHY MAJORITY
+#      Nodes 2 and 3 stay up throughout the write burst. Node 3 wins the first
+#      election and issues 55 writes (t=5..59s), driving last_applied past
+#      snapshot_index + COMPACTION_THRESHOLD(50). Compaction fires at ~t=56s
+#      (entry 50), truncating the WAL on both nodes 2 and 3.
+#
+#   2. LAGGING NODE REJOINS VIA INSTALL_SNAPSHOT
+#      Node 1 is killed at t=3s (before any writes) and revived at t=59s --
+#      three seconds AFTER compaction fires at t=56s. When node 1 connects,
+#      the leader's next_index[1]=1 but snapshot_index=50, so it hits:
+#        if next_index <= self.snapshot_index { send_snapshot_to_peer() }
+#      Node 1 installs the snapshot via handle_install_snapshot + truncate_log.
+#
+#   3. POST-SNAPSHOT WRITES REPLICATE NORMALLY
+#      Node 3 (the leader) issues two writes at t=63s and t=65s after node 1
+#      has rejoined. These go through ordinary AppendEntries to all three nodes.
+#
+#   4. INVARIANT CHECKER (run automatically by the runner script)
+#      Nodes 2 and 3 will have compacted entries 1-50; their on-disk WALs only
+#      hold entries 51+. Node 1's WAL holds only the snapshot + post-snapshot
+#      entries. The invariant checker validates what remains is consistent.
+#
+# TIMELINE (virtual time)
+# -----------------------
+#   t=1s       all three nodes start; node 3 wins the election
+#   t=3s       node 1 is killed (SIGKILL)
+#   t=5..55s   50 writes on node 3, one per second (indices 1..50)
+#   t=56s      entry 50 committed; compaction fires on nodes 2+3; snapshot_index=50
+#   t=59s      node 1 restarts (3s after compaction); next_index[1]=1 < snapshot_index=50
+#              -> leader sends InstallSnapshot, not AppendEntries
+#   t=63s      write #51 -- post-snapshot AppendEntries to all three nodes
+#   t=65s      write #52 -- confirms normal replication healthy after compaction
+#   t=70s      simulation ends
+
+general:
+  stop_time: 70s
+  bootstrap_end_time: 2s
+  model_unblocked_syscall_latency: true
+
+network:
+  graph:
+    type: 1_gbit_switch
+    latency: 10ms
+
+hosts:
+  # ------------------------------------------------------------------ node 1
+  # Killed before any writes; revived 3s after compaction fires.
+  # On restart: WAL is empty (killed before t=5s), next_index[1]=1,
+  # but leader snapshot_index=50 -> InstallSnapshot path is exercised.
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/log_compaction/cluster.json"
+        start_time: 1s
+        shutdown_time: 3s
+        shutdown_signal: SIGKILL
+        expected_final_state: {signaled: SIGKILL}
+        environment:
+          RUST_LOG: info
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/log_compaction/cluster.json"
+        start_time: 59s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  # ------------------------------------------------------------------ node 2
+  # Passive follower throughout. Compaction fires here at t=56s alongside node 3.
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/tests/shadow_tests/log_compaction/cluster.json"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  # ------------------------------------------------------------------ node 3
+  # Wins the first election (fastest timeout) and becomes the stable leader.
+  # Issues 50 writes (t=5..54s) to cross COMPACTION_THRESHOLD=50, then two
+  # more post-compaction writes (t=63s, t=65s) after node 1 has rejoined.
+  # Writes are sent from the leader directly so none are rejected.
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/log_compaction/cluster.json --write-at-second 5 --write-value true --write-at-second 6 --write-value false --write-at-second 7 --write-value true --write-at-second 8 --write-value false --write-at-second 9 --write-value true --write-at-second 10 --write-value false --write-at-second 11 --write-value true --write-at-second 12 --write-value false --write-at-second 13 --write-value true --write-at-second 14 --write-value false --write-at-second 15 --write-value true --write-at-second 16 --write-value false --write-at-second 17 --write-value true --write-at-second 18 --write-value false --write-at-second 19 --write-value true --write-at-second 20 --write-value false --write-at-second 21 --write-value true --write-at-second 22 --write-value false --write-at-second 23 --write-value true --write-at-second 24 --write-value false --write-at-second 25 --write-value true --write-at-second 26 --write-value false --write-at-second 27 --write-value true --write-at-second 28 --write-value false --write-at-second 29 --write-value true --write-at-second 30 --write-value false --write-at-second 31 --write-value true --write-at-second 32 --write-value false --write-at-second 33 --write-value true --write-at-second 34 --write-value false --write-at-second 35 --write-value true --write-at-second 36 --write-value false --write-at-second 37 --write-value true --write-at-second 38 --write-value false --write-at-second 39 --write-value true --write-at-second 40 --write-value false --write-at-second 41 --write-value true --write-at-second 42 --write-value false --write-at-second 43 --write-value true --write-at-second 44 --write-value false --write-at-second 45 --write-value true --write-at-second 46 --write-value false --write-at-second 47 --write-value true --write-at-second 48 --write-value false --write-at-second 49 --write-value true --write-at-second 50 --write-value false --write-at-second 51 --write-value true --write-at-second 52 --write-value false --write-at-second 53 --write-value true --write-at-second 54 --write-value false --write-at-second 63 --write-value true --write-at-second 65 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
