@@ -66,7 +66,7 @@ hosts:
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-second 10 --write-value true"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
@@ -77,7 +77,7 @@ hosts:
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-second 10 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
