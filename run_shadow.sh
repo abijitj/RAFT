@@ -87,6 +87,24 @@ for wal_dir in shadow.data/hosts/*/; do
   fi
 done
 
+echo "Extracting benchmarking metrics..."
+if [ -x "tests/shadow_tests/extract_metrics.sh" ]; then
+  tests/shadow_tests/extract_metrics.sh shadow.data "${ARCHIVE_DIR}/metrics.csv" || echo "  (metric extraction failed)"
+fi
+
+echo "Summarizing WAL sizes..."
+{
+  echo "host,on_disk_size_bytes,last_index,snapshot_index"
+  for wal_txt in "${ARCHIVE_DIR}"/*/*_wal.txt; do
+    [ -e "$wal_txt" ] || continue
+    host=$(basename "$(dirname "$wal_txt")")
+    size=$(sed -n 's/on_disk_size_bytes=\([0-9]*\)/\1/p' "$wal_txt")
+    last_index=$(sed -n 's/.*last_index=\([0-9]*\)/\1/p' "$wal_txt" | head -1)
+    snap_index=$(sed -n 's/snapshot_index=\([0-9]*\).*/\1/p' "$wal_txt" | head -1)
+    echo "${host},${size:-0},${last_index:-0},${snap_index:-0}"
+  done
+} > "${ARCHIVE_DIR}/wal_sizes.csv"
+
 echo "Checking Raft invariants..."
 if cargo run --release --bin invariant_checker -- shadow.data; then
   echo "PASS: all Raft invariants hold"
