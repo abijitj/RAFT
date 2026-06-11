@@ -110,6 +110,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     std::process::exit(1);
                 }
             }
+            "--write-at-second" => {
+                if i + 1 < args.len() {
+                    let secs: u128 = args[i + 1].parse().expect("Seconds must be an integer");
+                    write_ms.push(secs * 1000);
+                    i += 2;
+                } else {
+                    error!("Error: --write-at-second requires a value");
+                    std::process::exit(1);
+                }
+            }
             "--write-value" => {
                 if i + 1 < args.len() {
                     let val = args[i + 1].parse().expect("Value must be true or false");
