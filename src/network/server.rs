@@ -8,6 +8,9 @@ use tokio::sync::{mpsc, oneshot};
 use log::{debug, error}; // Added logging macros
 use super::pb; 
 
+use std::sync::Arc;
+use crate::network::filter::NetworkFilter;
+
 use crate::core::events::{
     RaftEvent, 
     RequestVoteArgs as CoreVoteArgs, 
@@ -18,11 +21,18 @@ use crate::core::events::{
 
 pub struct RaftServerImpl {
     tx_to_core: mpsc::Sender<RaftEvent>,
+    network_filter: Arc<NetworkFilter>,
 }
 
 impl RaftServerImpl {
-    pub fn new(tx_to_core: mpsc::Sender<RaftEvent>) -> Self {
-        Self { tx_to_core }
+    pub fn new(
+        tx_to_core: mpsc::Sender<RaftEvent>,
+        network_filter: Arc<NetworkFilter>,
+    ) -> Self {
+        Self {
+            tx_to_core,
+            network_filter,
+        }
     }
 }
 
@@ -34,6 +44,17 @@ impl pb::raft_server::Raft for RaftServerImpl {
         request: Request<pb::RequestVoteArgs>,
     ) -> Result<Response<pb::RequestVoteReply>, Status> {
         let req = request.into_inner();
+        if self.network_filter.should_block_sender(req.candidate_id) {
+            debug!(
+                "Dropping RequestVote from node {}",
+                req.candidate_id
+            );
+
+            return Err(Status::unavailable(
+                "blocked by network filter"
+            ));
+        }
+
         debug!("Received RequestVote from candidate {} for term {}", req.candidate_id, req.term);
 
         let core_args = CoreVoteArgs {
@@ -75,6 +96,18 @@ impl pb::raft_server::Raft for RaftServerImpl {
         request: Request<pb::AppendEntriesArgs>,
     ) -> Result<Response<pb::AppendEntriesReply>, Status> {
         let req = request.into_inner();
+
+        if self.network_filter.should_block_sender(req.leader_id) {
+            debug!(
+                "Dropping AppendEntries from node {}",
+                req.leader_id
+            );
+
+            return Err(Status::unavailable(
+                "blocked by network filter"
+            ));
+        }
+
         debug!("Received AppendEntries from leader {} for term {} (entries: {})", req.leader_id, req.term, req.entries.len());
 
         let core_entries: Vec<CoreLogEntry> = req.entries
@@ -127,6 +160,17 @@ impl pb::raft_server::Raft for RaftServerImpl {
         request: Request<pb::InstallSnapshotArgs>,
     ) -> Result<Response<pb::InstallSnapshotReply>, Status> {
         let req = request.into_inner();
+
+        if self.network_filter.should_block_sender(req.leader_id) {
+            debug!(
+                "Dropping InstallSnapshot from node {}",
+                req.leader_id
+            );
+
+            return Err(Status::unavailable(
+                "blocked by network filter"
+            ));
+        }
         debug!("Received InstallSnapshot from leader {} for term {}", req.leader_id, req.term);
 
         let core_args = CoreSnapshotArgs {
@@ -166,6 +210,13 @@ mod tests {
     use super::*;
     use tonic::{Request, Code};
     use crate::core::events::{RequestVoteReply, AppendEntriesReply};
+    use std::sync::Arc;
+    use crate::network::filter::NetworkFilter;
+
+    fn make_server(tx: mpsc::Sender<RaftEvent>) -> RaftServerImpl {
+        let network_filter = Arc::new(NetworkFilter::new(vec![]));
+        RaftServerImpl::new(tx, network_filter)
+    }
 
     // ========================================================================
     // Test 1: RequestVote Translation
@@ -173,7 +224,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_vote_success() {
         let (tx_to_core, mut rx_from_server) = mpsc::channel(1);
-        let server = RaftServerImpl::new(tx_to_core);
+        let server = make_server(tx_to_core);
 
         let proto_req = pb::RequestVoteArgs {
             term: 5,
@@ -216,7 +267,7 @@ mod tests {
     #[tokio::test]
     async fn test_append_entries_success() {
         let (tx_to_core, mut rx_from_server) = mpsc::channel(1);
-        let server = RaftServerImpl::new(tx_to_core);
+        let server = make_server(tx_to_core);
 
         // Create a payload with 2 log entries
         let proto_req = pb::AppendEntriesArgs {
@@ -261,7 +312,7 @@ mod tests {
     #[tokio::test]
     async fn test_server_returns_error_if_core_is_down() {
         let (tx_to_core, rx_from_server) = mpsc::channel(1);
-        let server = RaftServerImpl::new(tx_to_core);
+        let server = make_server(tx_to_core);
 
         // Simulate "The Brain" crashing by dropping the receiver
         drop(rx_from_server);
@@ -289,7 +340,7 @@ mod tests {
     #[tokio::test]
     async fn test_server_returns_error_if_core_drops_reply_channel() {
         let (tx_to_core, mut rx_from_server) = mpsc::channel(1);
-        let server = RaftServerImpl::new(tx_to_core);
+        let server = make_server(tx_to_core);
 
         let proto_req = pb::AppendEntriesArgs {
             term: 1,
