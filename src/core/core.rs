@@ -232,10 +232,10 @@ impl RaftCore {
             RaftEvent::ClientCommand {
                 new_value,
                 reply_channel,
-            } => self.handle_client_command(new_value, reply_channel),
+            } => self.handle_client_command(new_value, reply_channel).await,
             RaftEvent::TestClientRequest {
                 new_value,
-            } => self.handle_test_client_command(new_value),
+            } => self.handle_test_client_command(new_value).await,
         }
     }
 
@@ -503,7 +503,7 @@ impl RaftCore {
         }
     }
 
-    fn handle_test_client_command(
+    async fn handle_test_client_command(
         &mut self, 
         new_value: bool, 
     ) { 
@@ -524,11 +524,14 @@ impl RaftCore {
         self.match_index.insert(self.node_id, index);
 
         self.update_commit_index();
-        // Replication is intentionally deferred to the next heartbeat so
-        // commands arriving in the same interval are sent as one batch.
+        self.send_heartbeats().await;
+
+        // Heartbeat batching alternative:
+        // Comment out the send_heartbeats() call above to defer replication
+        // until the next periodic heartbeat and batch commands from the interval.
     }
 
-    fn handle_client_command(
+    async fn handle_client_command(
         &mut self,
         new_value: bool,
         reply_channel: oneshot::Sender<Result<(), String>>,
@@ -556,8 +559,11 @@ impl RaftCore {
         self.pending_client_replies.insert(index, reply_channel);
 
         self.update_commit_index();
-        // Replication is intentionally deferred to the next heartbeat so
-        // commands arriving in the same interval are sent as one batch.
+        self.send_heartbeats().await;
+
+        // Heartbeat batching alternative:
+        // Comment out the send_heartbeats() call above to defer replication
+        // until the next periodic heartbeat and batch commands from the interval.
     }
 
     async fn send_request_vote(&self, target_node_id: u64, args: RequestVoteArgs) {
@@ -1379,7 +1385,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn client_commands_are_batched_until_the_next_heartbeat() {
+    async fn client_commands_send_append_entries_immediately() {
         let (mut core, _, mut outbound_rx) = test_core(vec![2, 3]);
         core.handle_election_timeout().await;
         drain_request_votes(&mut outbound_rx, 2).await;
@@ -1393,30 +1399,19 @@ mod tests {
         .await;
         drain_append_entries(&mut outbound_rx, 2).await;
 
-        core.handle_test_client_command(false);
-        core.handle_test_client_command(true);
-
-        assert!(
-            outbound_rx.try_recv().is_err(),
-            "client commands should not immediately send AppendEntries"
-        );
-
-        core.handle_heartbeat_tick().await;
+        core.handle_test_client_command(false).await;
 
         for _ in 0..2 {
             match outbound_rx.recv().await.unwrap() {
                 OutboundCommand::SendAppendEntries { args, .. } => {
                     assert_eq!(args.prev_log_index, 0);
-                    assert_eq!(
-                        args.entries,
-                        vec![entry(1, 1, false), entry(2, 1, true)]
-                    );
+                    assert_eq!(args.entries, vec![entry(1, 1, false)]);
                 }
                 OutboundCommand::SendRequestVote { .. } => {
-                    panic!("expected batched AppendEntries command");
+                    panic!("expected immediate AppendEntries command");
                 }
                 OutboundCommand::SendInstallSnapshot { .. } => {
-                    panic!("expected batched AppendEntries command");
+                    panic!("expected immediate AppendEntries command");
                 }
             }
         }
