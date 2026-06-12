@@ -1,46 +1,20 @@
 general:
   stop_time: 10s
-  bootstrap_end_time: 2s
+  bootstrap_end_time: 500ms
   model_unblocked_syscall_latency: true
 
 # t = 1s nodes 1-5 startup 
-# t = 2s node 3 (the leader) gets partitioned 
-# t = 4s write at node 3 should fail, write at node 2 (new leader) should pass
-# the write should propogate to nodes 1, 2, 4, and 5
+# t = 2s node 3 (the leader) crashes 
+# t = 3s write at node 2 (new leader) should pass
+# t = 4s node 3 rejoins 
+# write should propogate to all nodes
 
 network:
   graph:
-    type: gml
-    inline: |
-      graph [
-        directed 0
-        node [
-          id 0
-          host_bandwidth_down "1 Gbit"
-          host_bandwidth_up "1 Gbit"
-        ]
-        node [
-          id 1
-          host_bandwidth_down "1 Gbit"
-          host_bandwidth_up "1 Gbit"
-        ]
-        edge [
-          source 0
-          target 0
-          latency "10 ms"
-        ]
-        edge [
-          source 1
-          target 1
-          latency "10 ms"
-        ]
-        edge [
-          source 0
-          target 1
-          latency "10 ms"
-          packet_loss 1.0
-        ]
-      ]
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 10 ms
 
 hosts:
   node1:
@@ -59,22 +33,33 @@ hosts:
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-ms 3000 --write-value true"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-ms 2000 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
-          RUST_LOG: info
+          RUST_LOG: debug 
 
   node3:
-    network_node_id: 1
+    network_node_id: 0
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-ms 3000 --write-value true"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
         start_time: 1s
-        expected_final_state: running
+        shutdown_time: 2s
+        shutdown_signal: SIGKILL
+        expected_final_state:
+          signaled: SIGKILL
         environment:
           RUST_LOG: info
+        
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
+        start_time: 4s
+        expected_final_state: running
+        environment:
+          RUST_LOG: debug 
+
 
   node4:
     network_node_id: 0

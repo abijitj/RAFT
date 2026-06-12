@@ -162,6 +162,34 @@ impl WriteAheadLog for UnixWal {
         Ok(())
     }
 
+    fn truncate_log_suffix(&mut self, first_removed_index: u64) -> Result<(), String> {
+        let write_txn = self.db.begin_write().map_err(|e| e.to_string())?;
+        {
+            let mut table = write_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
+            let mut keys_to_delete = Vec::new();
+            for result in table.range(first_removed_index..).map_err(|e| e.to_string())? {
+                let (key, _) = result.map_err(|e| e.to_string())?;
+                keys_to_delete.push(key.value());
+            }
+            for key in keys_to_delete {
+                table.remove(key).map_err(|e| e.to_string())?;
+            }
+        }
+        {
+            let table = write_txn.open_table(LOG_TABLE).map_err(|e| e.to_string())?;
+            let mut length = 0;
+            for result in table.range(0..).map_err(|e| e.to_string())? {
+                let (key, _) = result.map_err(|e| e.to_string())?;
+                length = length.max(key.value());
+            }
+            drop(table);
+            let mut metadata = write_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
+            metadata.insert("length", length).map_err(|e| e.to_string())?;
+        }
+        write_txn.commit().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     fn save_snapshot(&mut self, last_included_index: u64, last_included_term: u64, state_machine_value: bool) -> Result<(), String> {
         let mut blob = Vec::with_capacity(17);
         blob.extend_from_slice(&last_included_index.to_le_bytes());

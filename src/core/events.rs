@@ -68,6 +68,8 @@ pub enum RaftEvent {
     },
     AppendEntriesResponse {
         from_node_id: u64,
+        sent_prev_log_index: u64,
+        sent_last_log_index: u64,
         result: Result<AppendEntriesReply, String>,
     },
     InstallSnapshot {

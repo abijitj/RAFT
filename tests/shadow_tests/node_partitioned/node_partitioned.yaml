@@ -1,12 +1,11 @@
 general:
-  stop_time: 10s
+  stop_time: 30s
   bootstrap_end_time: 2s
   model_unblocked_syscall_latency: true
 
-# t = 1s nodes 1-5 startup 
-# t = 2s node 3 (the leader) gets partitioned 
-# t = 4s write at node 3 should fail, write at node 2 (new leader) should pass
-# the write should propogate to nodes 1, 2, 4, and 5
+# t = 1 nodes 1-5 startup
+# t = 2 node 1 gets partitioned away from the other nodes 
+# t = 10 write happens at node 3 (the leader)
 
 network:
   graph:
@@ -44,7 +43,7 @@ network:
 
 hosts:
   node1:
-    network_node_id: 0
+    network_node_id: 1
     ip_addr: 11.0.0.1
     processes:
       - path: /workspaces/RAFT/target/release/raft
@@ -59,18 +58,18 @@ hosts:
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-ms 3000 --write-value true"
+        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json"
         start_time: 1s
         expected_final_state: running
         environment:
           RUST_LOG: info
 
   node3:
-    network_node_id: 1
+    network_node_id: 0
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-ms 3000 --write-value true"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_partitioned/cluster.json --write-at-ms 10000 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
