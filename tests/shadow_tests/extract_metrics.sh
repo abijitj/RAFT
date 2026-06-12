@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-
-set -uo pipefail
+set -euo pipefail
 
 SHADOW_DATA="${1:-shadow.data}"
 OUT_CSV="${2:-metrics.csv}"
@@ -13,39 +12,25 @@ fi
 
 echo "sim_time_s,host,event,fields" > "$OUT_CSV"
 
-shopt -s nullglob
-
 for host_dir in "$HOSTS_DIR"/*/; do
     host=$(basename "$host_dir")
 
-    for log in "$host_dir"*.stdout; do
-        awk -v host="$host" '
-            /METRIC/ {
-                ts = $0
-                if (match(ts, /T[0-9]+:[0-9]+:[0-9]+\.[0-9]+Z/)) {
-                    tstr = substr(ts, RSTART+1, RLENGTH-2)
-                    split(tstr, hms, ":")
-                    sim_time = hms[1]*3600 + hms[2]*60 + hms[3]
-                } else {
-                    sim_time = 0
-                }
+    # Shadow names process stdout files like raft.1000.stdout, etc.
+    for log in "$host_dir"/*.stdout; do
+        [ -e "$log" ] || continue
 
-                idx = index($0, "METRIC ")
-                rest = substr($0, idx + length("METRIC "))
+        grep -h "METRIC" "$log" | while IFS= read -r line; do
+            # Extract the leading virtual-time field (seconds, possibly with ns).
+            sim_time=$(echo "$line" | grep -oE '^[0-9]+\.[0-9]+' || echo "0")
 
-                n = split(rest, parts, " ")
-                event = parts[1]
-                fields = ""
-                for (i = 2; i <= n; i++) {
-                    fields = (fields == "" ? parts[i] : fields ";" parts[i])
-                }
+            # Extract everything from "METRIC" onward.
+            metric_part=$(echo "$line" | sed -n 's/.*METRIC \(.*\)/\1/p')
+            event=$(echo "$metric_part" | awk '{print $1}')
+            fields=$(echo "$metric_part" | cut -d' ' -f2- | tr ' ' ';')
 
-                printf "%s,%s,%s,%s\n", sim_time, host, event, fields
-            }
-        ' "$log" >> "$OUT_CSV"
+            echo "${sim_time},${host},${event},${fields}" >> "$OUT_CSV"
+        done
     done
 done
-
-shopt -u nullglob
 
 echo "Wrote $(($(wc -l < "$OUT_CSV") - 1)) metric rows to ${OUT_CSV}"
