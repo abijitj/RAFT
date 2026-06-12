@@ -490,6 +490,8 @@ impl RaftCore {
         self.match_index.insert(self.node_id, index);
 
         self.update_commit_index();
+        // Replication is intentionally deferred to the next heartbeat so
+        // commands arriving in the same interval are sent as one batch.
     }
 
     fn handle_client_command(
@@ -520,6 +522,8 @@ impl RaftCore {
         self.pending_client_replies.insert(index, reply_channel);
 
         self.update_commit_index();
+        // Replication is intentionally deferred to the next heartbeat so
+        // commands arriving in the same interval are sent as one batch.
     }
 
     async fn send_request_vote(&self, target_node_id: u64, args: RequestVoteArgs) {
@@ -1295,6 +1299,50 @@ mod tests {
         core.handle_heartbeat_tick().await;
 
         drain_append_entries(&mut outbound_rx, 2).await;
+    }
+
+    #[tokio::test]
+    async fn client_commands_are_batched_until_the_next_heartbeat() {
+        let (mut core, _, mut outbound_rx) = test_core(vec![2, 3]);
+        core.handle_election_timeout().await;
+        drain_request_votes(&mut outbound_rx, 2).await;
+        core.handle_request_vote_response(
+            2,
+            Ok(RequestVoteReply {
+                term: 1,
+                vote_granted: true,
+            }),
+        )
+        .await;
+        drain_append_entries(&mut outbound_rx, 2).await;
+
+        core.handle_test_client_command(false);
+        core.handle_test_client_command(true);
+
+        assert!(
+            outbound_rx.try_recv().is_err(),
+            "client commands should not immediately send AppendEntries"
+        );
+
+        core.handle_heartbeat_tick().await;
+
+        for _ in 0..2 {
+            match outbound_rx.recv().await.unwrap() {
+                OutboundCommand::SendAppendEntries { args, .. } => {
+                    assert_eq!(args.prev_log_index, 0);
+                    assert_eq!(
+                        args.entries,
+                        vec![entry(1, 1, false), entry(2, 1, true)]
+                    );
+                }
+                OutboundCommand::SendRequestVote { .. } => {
+                    panic!("expected batched AppendEntries command");
+                }
+                OutboundCommand::SendInstallSnapshot { .. } => {
+                    panic!("expected batched AppendEntries command");
+                }
+            }
+        }
     }
 
     // Verifies that a failed AppendEntries response backs up nextIndex and retries.
