@@ -51,30 +51,6 @@ With Shadow and TGen installed, transition to the workspace:
 
 ---
 
-## Profiling & Benchmarking
-
-The implementation collects election latency, commit latency, leader election time retry
-counts, log compaction behavior, etc. Each run produces, under `runs/shadow_tests/<test_name>/`:
-- **`metrics.csv`** — all `METRIC` lines across all hosts, parsed into
-  `sim_time_s, host, event, fields` via `tests/shadow_tests/extract_metrics.sh`.
-  Load with pandas to compute election/commit latencies, retry counts, etc.
-- **`wal_sizes.csv`** — per-host `on_disk_size_bytes`, `last_index`, and
-  `snapshot_index`, derived from the (now extended) `wal_dump` output. Useful
-  for tracking log/WAL growth and the effect of compaction.
-
-The compaction threshold (default 50 entries) is configurable via the
-`RAFT_COMPACTION_THRESHOLD` environment variable, which can be set to a very large
-number to effectively disable compaction. To run the `log_compaction` test
-both with and without compaction and compare resulting WAL sizes run the command: 
-
-```bash
-./tests/shadow_tests/compare_compaction.sh
-```
-
-It builds the project, runs `log_compaction.yaml` twice with different `RAFT_COMPACTION_THRESHOLD` values, dumps WALs for each variant under `runs/log_compaction_comparison/`, and prints a side-by-side `on_disk_size_bytes` table per node.
-
----
-
 ## Advanced Shadow Configuration & Network Graph Setup
 
 To rigorously test the RAFT protocol's fault tolerance and performance, it is necessary to customize the simulated network environment. Shadow uses a `shadow.yaml` configuration file to dictate the network topology and process behaviors.
