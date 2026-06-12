@@ -51,6 +51,23 @@ With Shadow and TGen installed, transition to the workspace:
 
 ---
 
+## Profiling
+
+The implementation collects WAL append latency, election latency, replication (commit) latency, and AppendEntries RPC latency. The results of these can be found under under `runs/shadow_tests/<test_name>/timing_report.txt`
+
+The compaction threshold (default 50 entries) is configurable via the
+`RAFT_COMPACTION_THRESHOLD` environment variable, which can be set to a very large
+number to effectively disable compaction. To run the `log_compaction` test
+both with and without compaction and compare resulting WAL sizes run the command: 
+
+```bash
+./tests/shadow_tests/compare_compaction.sh
+```
+
+It builds the project, runs `log_compaction.yaml` twice with different `RAFT_COMPACTION_THRESHOLD` values, dumps WALs for each variant under `runs/log_compaction_comparison/`, and prints a side-by-side `on_disk_size_bytes` table per node.
+
+---
+
 ## Advanced Shadow Configuration & Network Graph Setup
 
 To rigorously test the RAFT protocol's fault tolerance and performance, it is necessary to customize the simulated network environment. Shadow uses a `shadow.yaml` configuration file to dictate the network topology and process behaviors.
