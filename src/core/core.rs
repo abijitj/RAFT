@@ -5,6 +5,7 @@ use crate::core::events::{
 use crate::storage::WriteAheadLog;
 use log::{debug, error, info, warn};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::time::{Duration};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
@@ -15,7 +16,14 @@ use rand::rngs::StdRng;
 const MAX_NODES: usize = 100;
 const MIN_ELECTION_TIMEOUT_MS: u64 = 150;
 const MAX_ELECTION_TIMEOUT_MS: u64 = 300;
-const COMPACTION_THRESHOLD: u64 = 50;
+const DEFAULT_COMPACTION_THRESHOLD: u64 = 50;
+
+fn compaction_threshold() -> u64 {
+    match env::var("RAFT_COMPACTION_THRESHOLD") {
+        Ok(val) => val.parse().unwrap_or(DEFAULT_COMPACTION_THRESHOLD),
+        Err(_) => DEFAULT_COMPACTION_THRESHOLD,
+    }
+}
 
 /// The operational states a Raft node can occupy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -937,7 +945,8 @@ impl RaftCore {
     }
 
     fn maybe_compact(&mut self) {
-        if self.last_applied < self.snapshot_index + COMPACTION_THRESHOLD {
+        let threshold = compaction_threshold();
+        if self.last_applied < self.snapshot_index + threshold {
             return;
         }
         let compact_up_to = self.last_applied;

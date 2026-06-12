@@ -57,14 +57,33 @@ The implementation collects WAL append latency, election latency, replication (c
 
 The compaction threshold (default 50 entries) is configurable via the
 `RAFT_COMPACTION_THRESHOLD` environment variable, which can be set to a very large
-number to effectively disable compaction. To run the `log_compaction` test
-both with and without compaction and compare resulting WAL sizes run the command: 
+number to effectively disable compaction.
+
+The `tests/shadow_tests/compare_compaction.sh` script compares the number
+of WAL entries stored for each node with and without compaction.
+
+To compare compaction behavior for the default `log_compaction` test, run:
 
 ```bash
 ./tests/shadow_tests/compare_compaction.sh
 ```
 
-It builds the project, runs `log_compaction.yaml` twice with different `RAFT_COMPACTION_THRESHOLD` values, dumps WALs for each variant under `runs/log_compaction_comparison/`, and prints a side-by-side `on_disk_size_bytes` table per node.
+To compare compaction for any other shadow test, pass the test YAML path:
+
+```bash
+./tests/shadow_tests/compare_compaction.sh tests/shadow_tests/<test_dir>/<test>.yaml
+```
+
+You can also invoke this from `run_shadow.sh`:
+
+```bash
+./run_shadow.sh --compare-compaction tests/shadow_tests/<test_dir>/<test>.yaml
+```
+
+The script builds the project, runs the selected test twice with different
+`RAFT_COMPACTION_THRESHOLD` values, sums the on-disk size of each host's
+`raft_data_*` WAL files, dumps WAL contents for inspection, and prints a
+side-by-side size comparison for each node.
 
 ---
 

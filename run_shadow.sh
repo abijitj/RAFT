@@ -3,8 +3,28 @@
 set -e
 
 TEST_DIR="tests/shadow_tests"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMPARE_COMPACTION=0
+FILE_NAME=""
 
-if [ -z "$1" ]; then
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --compare-compaction)
+      COMPARE_COMPACTION=1
+      shift
+      ;;
+    *)
+      if [ -n "$FILE_NAME" ]; then
+        echo "Error: unexpected argument '$1'" >&2
+        exit 1
+      fi
+      FILE_NAME="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$FILE_NAME" ]; then
   echo "No file name provided. Scanning for nested YAML tests in ${TEST_DIR}..."
   
   shopt -s nullglob
@@ -39,7 +59,6 @@ if [ -z "$1" ]; then
     fi
   done
 else
-  FILE_NAME=$1
   if [ ! -f "$FILE_NAME" ]; then
     echo "Error: File '$FILE_NAME' does not exist."
     exit 1
@@ -52,6 +71,12 @@ cargo build --release
 echo "Removing old shadow.data/ directory and shadow.log..."
 [ -d shadow.data ] && rm -rf shadow.data/
 [ -f shadow.log ] && rm shadow.log
+
+if [ "$COMPARE_COMPACTION" -eq 1 ]; then
+  echo "Running compaction comparison for ${FILE_NAME}..."
+  "$SCRIPT_DIR/tests/shadow_tests/compare_compaction.sh" "$FILE_NAME"
+  exit $?
+fi
 
 echo "Running shadow simulation for ${FILE_NAME}..."
 shadow "${FILE_NAME}" > shadow.log
