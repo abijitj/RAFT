@@ -5,6 +5,7 @@ pub trait WriteAheadLog: Send + Sync {
     fn save_metadata(&mut self, current_term: u64, voted_for: Option<u32>) -> Result<(), String>;
     fn load_metadata(&self) -> Result<(u64, Option<u32>), String>;
     fn truncate_log(&mut self, last_included_index: u64) -> Result<(), String>;
+    fn truncate_log_suffix(&mut self, first_removed_index: u64) -> Result<(), String>;
     fn save_snapshot(&mut self, last_included_index: u64, last_included_term: u64, state_machine_value: bool) -> Result<(), String>;
     fn load_snapshot(&self) -> Result<Option<Snapshot>, String>;
 }
@@ -100,6 +101,14 @@ pub mod tests {
             Ok(())
         }
 
+        fn truncate_log_suffix(&mut self, first_removed_index: u64) -> Result<(), String> {
+            let mut log = self.log.lock().unwrap();
+            log.retain(|&k, _| k < first_removed_index);
+            let length = log.keys().copied().max().unwrap_or(0);
+            self.metadata.lock().unwrap().insert("length".to_string(), length);
+            Ok(())
+        }
+
         fn save_snapshot(&mut self, last_included_index: u64, last_included_term: u64, state_machine_value: bool) -> Result<(), String> {
             *self.snapshot.lock().unwrap() = Some(Snapshot {
                 last_included_index,
@@ -122,6 +131,21 @@ pub mod tests {
         assert_eq!(wal.log_length().unwrap(), 1);
         wal.append_entry(2, 1, &[0]).unwrap();
         assert_eq!(wal.log_length().unwrap(), 2);
+    }
+
+    #[test]
+    fn suffix_truncation_preserves_log_prefix() {
+        let mut wal = MockWal::new();
+        for index in 1..=5 {
+            wal.append_entry(index, 1, &[1]).unwrap();
+        }
+
+        wal.truncate_log_suffix(4).unwrap();
+
+        assert!(wal.get_entry(3).unwrap().is_some());
+        assert!(wal.get_entry(4).unwrap().is_none());
+        assert!(wal.get_entry(5).unwrap().is_none());
+        assert_eq!(wal.log_length().unwrap(), 3);
     }
 
     #[test]

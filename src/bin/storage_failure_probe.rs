@@ -67,6 +67,14 @@ impl WriteAheadLog for FailingWal {
         }
     }
 
+    fn truncate_log_suffix(&mut self, _first_removed_index: u64) -> Result<(), String> {
+        if self.fail_writes {
+            Err("injected suffix truncate failure".to_string())
+        } else {
+            Ok(())
+        }
+    }
+
     fn save_snapshot(
         &mut self,
         _last_included_index: u64,

@@ -761,7 +761,7 @@ impl RaftCore {
 
     fn truncate_suffix_from(&mut self, first_removed_index: u64) {
         // Truncate all entries at or after first_removed_index
-        if let Err(e) = self.storage.truncate_log(first_removed_index.saturating_sub(1)) {
+        if let Err(e) = self.storage.truncate_log_suffix(first_removed_index) {
             error!(
                 "Failed to persist log truncation from index {}: {}",
                 first_removed_index, e
@@ -887,18 +887,17 @@ impl RaftCore {
     }
 
     fn last_log_index(&self) -> u64 {
-        self.storage
+        let stored_last_index = self.storage
             .log_length()
             .unwrap_or_else(|e| {
                 error!("Failed to read persistent log length: {}", e);
                 panic!("failed to read persistent log length: {e}");
-            })
+            });
+        stored_last_index.max(self.snapshot_index)
     }
 
     fn last_log_term(&self) -> u64 {
-        self.entry_at(self.last_log_index())
-            .map(|entry| entry.term)
-            .unwrap_or(0)
+        self.term_at(self.last_log_index()).unwrap_or(0)
     }
 
     fn reset_election_timer(&mut self) {
@@ -1120,6 +1119,27 @@ mod tests {
             term,
             command,
         }
+    }
+
+    #[test]
+    fn snapshot_boundary_is_the_last_log_entry_when_suffix_is_empty() {
+        let (mut core, _, _) = test_core(vec![2, 3]);
+        core.snapshot_index = 5;
+        core.snapshot_term = 3;
+
+        assert_eq!(core.last_log_index(), 5);
+        assert_eq!(core.last_log_term(), 3);
+    }
+
+    #[test]
+    fn stored_suffix_remains_the_last_log_entry_after_snapshot() {
+        let (mut core, _, _) = test_core(vec![2, 3]);
+        core.snapshot_index = 5;
+        core.snapshot_term = 3;
+        core.push_log_entry(entry(6, 4, true));
+
+        assert_eq!(core.last_log_index(), 6);
+        assert_eq!(core.last_log_term(), 4);
     }
 
     async fn drain_request_votes(outbound_rx: &mut mpsc::Receiver<OutboundCommand>, count: usize) {
