@@ -100,6 +100,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 i += 6;
             }
+            "--write-at-second" => {
+                if i + 1 < args.len() {
+                    let seconds: u128 = args[i + 1].parse().expect("Seconds must be an integer");
+                    write_ms.push(seconds.saturating_mul(1000));
+                    i += 2;
+                } else {
+                    error!("Error: --write-at-second requires a value");
+                    std::process::exit(1);
+                }
+            }
             "--write-at-ms" => {
                 if i + 1 < args.len() {
                     let ms: u128 = args[i + 1].parse().expect("Milliseconds must be an integer");

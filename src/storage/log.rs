@@ -56,6 +56,7 @@ impl UnixWal {
 
 impl WriteAheadLog for UnixWal {
     fn append_entry(&mut self, index: u64, term: u64, command: &[u8]) -> Result<(), String> {
+        let __start = std::time::Instant::now();
         let mut data = Vec::with_capacity(8 + command.len());
         data.extend_from_slice(&term.to_le_bytes());
         data.extend_from_slice(command);
@@ -67,14 +68,11 @@ impl WriteAheadLog for UnixWal {
         }
         {
             let mut metadata = write_txn.open_table(METADATA_TABLE).map_err(|e| e.to_string())?;
-            let length = metadata
-                .get("length")
-                .map_err(|e| e.to_string())?
-                .map(|v| v.value())
-                .unwrap_or(0);
+            let length = metadata.get("length").map_err(|e| e.to_string())?.map(|v| v.value()).unwrap_or(0);
             metadata.insert("length", length.max(index)).map_err(|e| e.to_string())?;
         }
         write_txn.commit().map_err(|e| e.to_string())?;
+        log::info!("WAL_TIMING append_entry index={} elapsed_us={}", index, __start.elapsed().as_micros());
         Ok(())
     }
 

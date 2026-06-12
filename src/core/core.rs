@@ -64,6 +64,10 @@ pub struct RaftCore {
     /// Prevents redundant snapshots from being sent on every heartbeat tick
     /// while the first one is still awaiting a response.
     snapshot_in_flight: HashSet<u64>,
+    /// When the current node started an election; used to record election latency.
+    election_start_time: Option<Instant>,
+    /// Tracks when leader-appended log entries were first created, for commit latency.
+    pending_entry_timestamps: HashMap<u64, Instant>,
 }
 
 impl RaftCore {
@@ -150,6 +154,8 @@ impl RaftCore {
             snapshot_term,
             known_leader_id: None,
             election_deadline: Self::new_election_deadline(node_id, current_term),
+            election_start_time: None,
+            pending_entry_timestamps: HashMap::new(),
             votes_received: HashSet::new(),
             next_index: HashMap::new(),
             match_index: HashMap::new(),
@@ -247,6 +253,7 @@ impl RaftCore {
     }
 
     async fn start_election(&mut self) {
+        self.election_start_time = Some(Instant::now());
         self.become_candidate();
         if self.has_majority(self.votes_received.len()) {
             self.become_leader().await;
@@ -279,6 +286,7 @@ impl RaftCore {
     }
 
     fn become_follower(&mut self, term: u64) {
+        self.election_start_time = None;
         if term > self.current_term {
             info!("Saw higher term ({} > {}). Updating term.", term, self.current_term);
             self.current_term = term;
@@ -299,6 +307,13 @@ impl RaftCore {
     }
 
     async fn become_leader(&mut self) {
+        if let Some(start_time) = self.election_start_time.take() {
+            info!(
+                "ELECTION_LATENCY term={} elapsed_us={}",
+                self.current_term,
+                start_time.elapsed().as_micros()
+            );
+        }
         info!("Received majority votes. Transitioning to Leader for term {}!", self.current_term);
         self.state = NodeState::Leader;
         self.known_leader_id = Some(self.node_id);
@@ -508,6 +523,7 @@ impl RaftCore {
             command: new_value,
         };
         self.push_log_entry(entry);
+        self.pending_entry_timestamps.insert(index, Instant::now());
         self.match_index.insert(self.node_id, index);
 
         self.update_commit_index();
@@ -537,6 +553,7 @@ impl RaftCore {
             command: new_value,
         };
         self.push_log_entry(entry);
+        self.pending_entry_timestamps.insert(index, Instant::now());
         self.match_index.insert(self.node_id, index);
         self.pending_client_replies.insert(index, reply_channel);
 
@@ -683,6 +700,15 @@ impl RaftCore {
         }
 
         if self.commit_index != old_commit_index {
+            for index in (old_commit_index + 1)..=self.commit_index {
+                if let Some(start_time) = self.pending_entry_timestamps.remove(&index) {
+                    info!(
+                        "REPLICATION_LATENCY index={} elapsed_us={}",
+                        index,
+                        start_time.elapsed().as_micros()
+                    );
+                }
+            }
             info!("Leader updated commit_index to {}", self.commit_index);
             self.apply_committed_entries();
             self.maybe_compact();

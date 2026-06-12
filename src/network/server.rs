@@ -5,7 +5,7 @@
 
 use tonic::{Request, Response, Status};
 use tokio::sync::{mpsc, oneshot};
-use log::{debug, error}; // Added logging macros
+use log::{debug, error, info}; // Added logging macros
 use super::pb; 
 
 use std::sync::Arc;
@@ -43,13 +43,16 @@ impl pb::raft_server::Raft for RaftServerImpl {
         &self,
         request: Request<pb::RequestVoteArgs>,
     ) -> Result<Response<pb::RequestVoteReply>, Status> {
+        let __start = std::time::Instant::now();
         let req = request.into_inner();
+        
         if self.network_filter.should_block_sender(req.candidate_id) {
             debug!(
                 "Dropping RequestVote from node {}",
                 req.candidate_id
             );
 
+            info!("RPC_TIMING request_vote elapsed_us={}", __start.elapsed().as_micros());
             return Err(Status::unavailable(
                 "blocked by network filter"
             ));
@@ -72,10 +75,11 @@ impl pb::raft_server::Raft for RaftServerImpl {
         
         if self.tx_to_core.send(event).await.is_err() {
             error!("Failed to route RequestVote to core: core loop is down");
+            info!("RPC_TIMING request_vote elapsed_us={}", __start.elapsed().as_micros());
             return Err(Status::internal("Raft core loop is down"));
         }
 
-        match reply_rx.await {
+        let res = match reply_rx.await {
             Ok(core_reply) => {
                 debug!("Replying to RequestVote: vote_granted={}", core_reply.vote_granted);
                 let proto_reply = pb::RequestVoteReply {
@@ -88,13 +92,17 @@ impl pb::raft_server::Raft for RaftServerImpl {
                 error!("Failed to reply to RequestVote: core dropped the channel");
                 Err(Status::internal("Core dropped the reply channel"))
             }
-        }
+        };
+
+        info!("RPC_TIMING request_vote elapsed_us={}", __start.elapsed().as_micros());
+        res
     }
 
     async fn append_entries(
         &self,
         request: Request<pb::AppendEntriesArgs>,
     ) -> Result<Response<pb::AppendEntriesReply>, Status> {
+        let __start = std::time::Instant::now();
         let req = request.into_inner();
 
         if self.network_filter.should_block_sender(req.leader_id) {
@@ -103,6 +111,7 @@ impl pb::raft_server::Raft for RaftServerImpl {
                 req.leader_id
             );
 
+            info!("RPC_TIMING append_entries elapsed_us={}", __start.elapsed().as_micros());
             return Err(Status::unavailable(
                 "blocked by network filter"
             ));
@@ -136,10 +145,11 @@ impl pb::raft_server::Raft for RaftServerImpl {
 
         if self.tx_to_core.send(event).await.is_err() {
             error!("Failed to route AppendEntries to core: core loop is down");
+            info!("RPC_TIMING append_entries elapsed_us={}", __start.elapsed().as_micros());
             return Err(Status::internal("Raft core loop is down"));
         }
 
-        match reply_rx.await {
+        let res = match reply_rx.await {
             Ok(core_reply) => {
                 debug!("Replying to AppendEntries: success={}", core_reply.success);
                 let proto_reply = pb::AppendEntriesReply {
@@ -152,13 +162,17 @@ impl pb::raft_server::Raft for RaftServerImpl {
                 error!("Failed to reply to AppendEntries: core dropped the channel");
                 Err(Status::internal("Core dropped the reply channel"))
             }
-        }
+        };
+
+        info!("RPC_TIMING append_entries elapsed_us={}", __start.elapsed().as_micros());
+        res
     }
 
     async fn install_snapshot(
         &self,
         request: Request<pb::InstallSnapshotArgs>,
     ) -> Result<Response<pb::InstallSnapshotReply>, Status> {
+        let __start = std::time::Instant::now();
         let req = request.into_inner();
 
         if self.network_filter.should_block_sender(req.leader_id) {
@@ -167,6 +181,7 @@ impl pb::raft_server::Raft for RaftServerImpl {
                 req.leader_id
             );
 
+            info!("RPC_TIMING install_snapshot elapsed_us={}", __start.elapsed().as_micros());
             return Err(Status::unavailable(
                 "blocked by network filter"
             ));
@@ -189,10 +204,11 @@ impl pb::raft_server::Raft for RaftServerImpl {
 
         if self.tx_to_core.send(event).await.is_err() {
             error!("Failed to route InstallSnapshot to core: core loop is down");
+            info!("RPC_TIMING install_snapshot elapsed_us={}", __start.elapsed().as_micros());
             return Err(Status::internal("Raft core loop is down"));
         }
 
-        match reply_rx.await {
+        let res = match reply_rx.await {
             Ok(core_reply) => {
                 let proto_reply = pb::InstallSnapshotReply { term: core_reply.term };
                 Ok(Response::new(proto_reply))
@@ -201,7 +217,10 @@ impl pb::raft_server::Raft for RaftServerImpl {
                 error!("Failed to reply to InstallSnapshot: core dropped the channel");
                 Err(Status::internal("Core dropped the reply channel"))
             }
-        }
+        };
+
+        info!("RPC_TIMING install_snapshot elapsed_us={}", __start.elapsed().as_micros());
+        res
     }
 }
 

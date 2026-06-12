@@ -106,6 +106,9 @@ mv "${ARCHIVE_DIR}.tar.gz" "${ARCHIVE_DIR}/shadow_data.tar.gz"
 
 echo "Archive successfully created!"
 
+echo "Analyzing timing data..."
+python3 analyze_shadow_log.py shadow.log > "${ARCHIVE_DIR}/timing_report.txt" || true
+
 if [ -n "${INVARIANT_FAILED:-}" ]; then
   exit 1
 fi
