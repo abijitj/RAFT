@@ -58,7 +58,6 @@ pub struct RaftCore {
     votes_received: HashSet<u64>,
     next_index: HashMap<u64, u64>,
     match_index: HashMap<u64, u64>,
-    last_sent_index: HashMap<u64, u64>,
     pending_client_replies: HashMap<u64, oneshot::Sender<Result<(), String>>>,
     /// Peers for which an InstallSnapshot RPC is currently in-flight.
     /// Prevents redundant snapshots from being sent on every heartbeat tick
@@ -153,7 +152,6 @@ impl RaftCore {
             votes_received: HashSet::new(),
             next_index: HashMap::new(),
             match_index: HashMap::new(),
-            last_sent_index: HashMap::new(),
             pending_client_replies: HashMap::new(),
             snapshot_in_flight: HashSet::new(),
         }
@@ -208,8 +206,18 @@ impl RaftCore {
             }
             RaftEvent::AppendEntriesResponse {
                 from_node_id,
+                sent_prev_log_index,
+                sent_last_log_index,
                 result,
-            } => self.handle_append_entries_response(from_node_id, result).await,
+            } => {
+                self.handle_append_entries_response(
+                    from_node_id,
+                    sent_prev_log_index,
+                    sent_last_log_index,
+                    result,
+                )
+                .await
+            }
             RaftEvent::InstallSnapshot {
                 args,
                 reply_channel,
@@ -294,7 +302,6 @@ impl RaftCore {
         self.votes_received.clear();
         self.next_index.clear();
         self.match_index.clear();
-        self.last_sent_index.clear();
         self.snapshot_in_flight.clear();
     }
 
@@ -305,7 +312,6 @@ impl RaftCore {
         self.votes_received.clear();
         self.next_index.clear();
         self.match_index.clear();
-        self.last_sent_index.clear();
 
         let next_index = self.last_log_index() + 1;
         for peer_id in &self.peer_ids {
@@ -450,6 +456,8 @@ impl RaftCore {
     async fn handle_append_entries_response(
         &mut self,
         from_node_id: u64,
+        sent_prev_log_index: u64,
+        sent_last_log_index: u64,
         result: Result<AppendEntriesReply, String>,
     ) {
         let Ok(reply) = result else {
@@ -470,22 +478,27 @@ impl RaftCore {
             return;
         }
 
-        let stale_next = self.last_sent_index.get(&from_node_id).copied().unwrap_or(0) + 1;
-
         if reply.success {
-            let replicated_index = stale_next - 1;
             let current_match = self.match_index.get(&from_node_id).copied().unwrap_or(0);
-            if replicated_index > current_match {
-                self.match_index.insert(from_node_id, replicated_index);
-                self.next_index.insert(from_node_id, replicated_index + 1);
+            if sent_last_log_index > current_match {
+                self.match_index.insert(from_node_id, sent_last_log_index);
+                let current_next = self.next_index.get(&from_node_id).copied().unwrap_or(1);
+                self.next_index
+                    .insert(from_node_id, current_next.max(sent_last_log_index + 1));
                 self.update_commit_index();
             }
         } else {
+            let request_next_index = sent_prev_log_index + 1;
             let next_index = self.next_index.get(&from_node_id).copied().unwrap_or(1);
-            if next_index <= stale_next {
+            if next_index == request_next_index {
                 self.next_index.insert(from_node_id, next_index.saturating_sub(1).max(1));
                 debug!("AppendEntries rejected by Node {}. Decrementing next_index to {}", from_node_id, self.next_index[&from_node_id]);
                 self.send_append_entries_to_peer(from_node_id).await;
+            } else {
+                debug!(
+                    "Ignoring stale AppendEntries rejection from Node {} (request next_index={}, current next_index={})",
+                    from_node_id, request_next_index, next_index
+                );
             }
         }
     }
@@ -606,8 +619,12 @@ impl RaftCore {
             return;
         }
 
-        self.last_sent_index.insert(target_node_id, last_sent_index);
-        self.forward_append_entries_response(target_node_id, result_rx);
+        self.forward_append_entries_response(
+            target_node_id,
+            prev_log_index,
+            last_sent_index,
+            result_rx,
+        );
     }
 
     fn forward_request_vote_response(
@@ -635,6 +652,8 @@ impl RaftCore {
     fn forward_append_entries_response(
         &self,
         from_node_id: u64,
+        sent_prev_log_index: u64,
+        sent_last_log_index: u64,
         result_rx: oneshot::Receiver<Result<AppendEntriesReply, String>>,
     ) {
         let Some(inbound_tx) = self.inbound_tx.clone() else {
@@ -648,6 +667,8 @@ impl RaftCore {
             let _ = inbound_tx
                 .send(RaftEvent::AppendEntriesResponse {
                     from_node_id,
+                    sent_prev_log_index,
+                    sent_last_log_index,
                     result,
                 })
                 .await;
@@ -1270,6 +1291,8 @@ mod tests {
 
         core.handle_append_entries_response(
             2,
+            0,
+            0,
             Ok(AppendEntriesReply {
                 term: 2,
                 success: false,
@@ -1418,6 +1441,8 @@ mod tests {
 
         core.handle_append_entries_response(
             2,
+            1,
+            1,
             Ok(AppendEntriesReply {
                 term: 1,
                 success: false,
@@ -1448,6 +1473,8 @@ mod tests {
 
         core.handle_append_entries_response(
             2,
+            1,
+            1,
             Ok(AppendEntriesReply {
                 term: 1,
                 success: true,
@@ -1477,9 +1504,10 @@ mod tests {
         .await;
         drain_append_entries(&mut outbound_rx, 2).await;
 
-        core.last_sent_index.insert(2, 1);
         core.handle_append_entries_response(
             2,
+            1,
+            1,
             Ok(AppendEntriesReply {
                 term: 2,
                 success: true,
@@ -1491,8 +1519,9 @@ mod tests {
 
         core.push_log_entry(entry(2, 2, true));
         core.match_index.insert(1, 2);
-        core.last_sent_index.insert(2, 2);
         core.handle_append_entries_response(
+            2,
+            1,
             2,
             Ok(AppendEntriesReply {
                 term: 2,
@@ -1504,5 +1533,54 @@ mod tests {
         assert_eq!(core.commit_index, 2);
         assert_eq!(core.last_applied, 2);
         assert!(core.state_machine_value);
+    }
+
+    #[tokio::test]
+    async fn stale_heartbeat_success_does_not_acknowledge_newer_entries() {
+        let (mut core, _, _) = test_core(vec![2, 3]);
+        core.state = NodeState::Leader;
+        core.current_term = 1;
+        core.push_log_entry(entry(1, 1, true));
+        core.match_index.insert(1, 1);
+        core.match_index.insert(2, 0);
+        core.next_index.insert(2, 1);
+
+        core.handle_append_entries_response(
+            2,
+            0,
+            0,
+            Ok(AppendEntriesReply {
+                term: 1,
+                success: true,
+            }),
+        )
+        .await;
+
+        assert_eq!(core.match_index.get(&2), Some(&0));
+        assert_eq!(core.next_index.get(&2), Some(&1));
+        assert_eq!(core.commit_index, 0);
+    }
+
+    #[tokio::test]
+    async fn stale_append_entries_failure_does_not_back_up_newer_progress() {
+        let (mut core, _, _) = test_core(vec![2, 3]);
+        core.state = NodeState::Leader;
+        core.current_term = 1;
+        core.match_index.insert(2, 2);
+        core.next_index.insert(2, 3);
+
+        core.handle_append_entries_response(
+            2,
+            0,
+            1,
+            Ok(AppendEntriesReply {
+                term: 1,
+                success: false,
+            }),
+        )
+        .await;
+
+        assert_eq!(core.match_index.get(&2), Some(&2));
+        assert_eq!(core.next_index.get(&2), Some(&3));
     }
 }
