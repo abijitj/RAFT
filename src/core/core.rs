@@ -15,18 +15,7 @@ use rand::rngs::StdRng;
 const MAX_NODES: usize = 100;
 const MIN_ELECTION_TIMEOUT_MS: u64 = 150;
 const MAX_ELECTION_TIMEOUT_MS: u64 = 300;
-const DEFAULT_COMPACTION_THRESHOLD: u64 = 50;
-
-/// Reads the compaction threshold from the `RAFT_COMPACTION_THRESHOLD` env var,
-/// falling back to `DEFAULT_COMPACTION_THRESHOLD`. Set this to a very large
-/// value (e.g. 1000000000) to effectively disable compaction for "without
-/// compaction" benchmark runs.
-fn compaction_threshold() -> u64 {
-    std::env::var("RAFT_COMPACTION_THRESHOLD")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(DEFAULT_COMPACTION_THRESHOLD)
-}
+const COMPACTION_THRESHOLD: u64 = 50;
 
 /// The operational states a Raft node can occupy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,10 +64,6 @@ pub struct RaftCore {
     /// Prevents redundant snapshots from being sent on every heartbeat tick
     /// while the first one is still awaiting a response.
     snapshot_in_flight: HashSet<u64>,
-    /// Counts AppendEntries rejections (nextIndex backtracks) per peer, for benchmarking.
-    retry_counts: HashMap<u64, u64>,
-    /// Wall-clock instant when the current election began (for METRIC logging).
-    election_started_at: Option<std::time::Instant>,
 }
 
 impl RaftCore {
@@ -171,8 +156,6 @@ impl RaftCore {
             last_sent_index: HashMap::new(),
             pending_client_replies: HashMap::new(),
             snapshot_in_flight: HashSet::new(),
-            retry_counts: HashMap::new(),
-            election_started_at: None,
         }
     }
 
@@ -291,10 +274,8 @@ impl RaftCore {
         self.votes_received.insert(self.node_id);
         self.reset_election_timer();
         self.persist_term_and_vote();
-        self.election_started_at = Some(std::time::Instant::now());
-
+        
         info!("Transitioned to Candidate for term {}", self.current_term);
-        info!("METRIC election_started node={} term={}", self.node_id, self.current_term);
     }
 
     fn become_follower(&mut self, term: u64) {
@@ -319,12 +300,6 @@ impl RaftCore {
 
     async fn become_leader(&mut self) {
         info!("Received majority votes. Transitioning to Leader for term {}!", self.current_term);
-        if let Some(started) = self.election_started_at.take() {
-            let elapsed_ms = started.elapsed().as_millis();
-            info!("METRIC leader_elected node={} term={} elapsed_ms={}", self.node_id, self.current_term, elapsed_ms);
-        } else {
-            info!("METRIC leader_elected node={} term={} elapsed_ms=0", self.node_id, self.current_term);
-        }
         self.state = NodeState::Leader;
         self.known_leader_id = Some(self.node_id);
         self.votes_received.clear();
@@ -509,10 +484,7 @@ impl RaftCore {
             let next_index = self.next_index.get(&from_node_id).copied().unwrap_or(1);
             if next_index <= stale_next {
                 self.next_index.insert(from_node_id, next_index.saturating_sub(1).max(1));
-                let count = self.retry_counts.entry(from_node_id).or_insert(0);
-                *count += 1;
                 debug!("AppendEntries rejected by Node {}. Decrementing next_index to {}", from_node_id, self.next_index[&from_node_id]);
-                info!("METRIC append_entries_retry node={} peer={} retry_count={} next_index={}", self.node_id, from_node_id, count, self.next_index[&from_node_id]);
                 self.send_append_entries_to_peer(from_node_id).await;
             }
         }
@@ -716,7 +688,6 @@ impl RaftCore {
 
         if self.commit_index != old_commit_index {
             info!("Leader updated commit_index to {}", self.commit_index);
-            info!("METRIC commit_advanced node={} term={} commit_index={}", self.node_id, self.current_term, self.commit_index);
             self.apply_committed_entries();
             self.maybe_compact();
         }
@@ -913,13 +884,11 @@ impl RaftCore {
     }
 
     fn maybe_compact(&mut self) {
-        let threshold = compaction_threshold();
-        if self.last_applied < self.snapshot_index + threshold {
+        if self.last_applied < self.snapshot_index + COMPACTION_THRESHOLD {
             return;
         }
         let compact_up_to = self.last_applied;
         let compact_term = self.term_at(compact_up_to).unwrap_or(self.snapshot_term);
-        let entries_compacted = compact_up_to - self.snapshot_index;
         info!("Compacting log up to index {} on Node {}", compact_up_to, self.node_id);
         if let Err(e) = self.storage.save_snapshot(
             compact_up_to,
@@ -936,7 +905,6 @@ impl RaftCore {
         self.snapshot_index = compact_up_to;
         self.snapshot_term = compact_term;
         info!("Compaction complete. snapshot_index={} on Node {}", self.snapshot_index, self.node_id);
-        info!("METRIC compaction node={} snapshot_index={} entries_compacted={}", self.node_id, self.snapshot_index, entries_compacted);
     }
 
     fn handle_install_snapshot(&mut self, args: InstallSnapshotArgs) -> InstallSnapshotReply {
@@ -980,8 +948,6 @@ impl RaftCore {
         self.state_machine_value = args.state_machine_value;
         self.commit_index = self.commit_index.max(args.last_included_index);
         self.last_applied = self.last_applied.max(args.last_included_index);
-
-        info!("METRIC install_snapshot node={} from={} snapshot_index={}", self.node_id, args.leader_id, self.snapshot_index);
 
         InstallSnapshotReply { term: self.current_term }
     }
