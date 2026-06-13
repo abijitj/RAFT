@@ -5,8 +5,21 @@ general:
 
 network:
   graph:
-    type: 1_gbit_switch
-    latency: 10ms
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        edge [
+          source 0
+          target 0
+          latency "10 ms"
+        ]
+      ]
 
 # node1 wins the election quickly (lowest ID, fastest timeout in our seeded RNG),
 # then gets killed at 5s before it can commit the write injected at 4s.
