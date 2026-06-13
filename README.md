@@ -44,10 +44,10 @@ With Shadow and TGen installed, transition to the workspace:
 
     cd /workspaces/RAFT
 
-### Workflow Loop
-1. **Build:** `cargo build --release`
-2. **Execute:** Run the simulation: `shadow shadow.yaml > shadow.log`
-3. **Analyze Logs:** Inspect the `shadow.data/` directory.
+### Testing Loop
+1. Run `bash run_shadow.sh` 
+2. Select the desired test from the options
+3. Inspect `shadow.data/` for node debug logs and `runs/<test_name>` for write-ahead-log (WAL) data 
 
 ---
 
