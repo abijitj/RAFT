@@ -1196,6 +1196,20 @@ mod tests {
         }
     }
 
+    async fn next_append_entries(
+        outbound_rx: &mut mpsc::Receiver<OutboundCommand>,
+    ) -> AppendEntriesArgs {
+        match outbound_rx.recv().await.unwrap() {
+            OutboundCommand::SendAppendEntries { args, .. } => args,
+            OutboundCommand::SendRequestVote { .. } => {
+                panic!("expected AppendEntries command");
+            }
+            OutboundCommand::SendInstallSnapshot { .. } => {
+                panic!("expected AppendEntries command");
+            }
+        }
+    }
+
     // Verifies that a new core starts in the initial Raft follower state.
     #[tokio::test]
     async fn server_starts_as_follower() {
@@ -1514,6 +1528,96 @@ mod tests {
 
         assert_eq!(core.match_index.get(&2), Some(&1));
         assert_eq!(core.next_index.get(&2), Some(&2));
+    }
+
+    #[tokio::test]
+    async fn leader_replaces_divergent_follower_log_suffix() {
+        let (mut leader, _, mut leader_outbound_rx) = test_core(vec![2]);
+        let (follower_inbound_tx, follower_inbound_rx) = mpsc::channel(100);
+        let (follower_outbound_tx, _) = mpsc::channel(100);
+        let mut follower = RaftCore::new_with_config(
+            follower_inbound_rx,
+            follower_inbound_tx,
+            follower_outbound_tx,
+            2,
+            vec![1],
+            Box::new(crate::storage::tests::MockWal::new()),
+        );
+
+        for log_entry in [
+            entry(1, 1, false),
+            entry(2, 1, true),
+            entry(3, 3, false),
+            entry(4, 3, true),
+        ] {
+            leader.push_log_entry(log_entry);
+        }
+        for log_entry in [
+            entry(1, 1, false),
+            entry(2, 1, true),
+            entry(3, 2, true),
+            entry(4, 2, false),
+            entry(5, 2, true),
+        ] {
+            follower.push_log_entry(log_entry);
+        }
+
+        leader.state = NodeState::Leader;
+        leader.current_term = 3;
+        leader.match_index.insert(1, 4);
+        leader.match_index.insert(2, 0);
+        leader.next_index.insert(2, 5);
+        follower.current_term = 3;
+
+        leader.send_append_entries_to_peer(2).await;
+
+        for expected_prev_log_index in [4, 3] {
+            let args = next_append_entries(&mut leader_outbound_rx).await;
+            assert_eq!(args.prev_log_index, expected_prev_log_index);
+            let sent_last_log_index = args
+                .entries
+                .last()
+                .map(|log_entry| log_entry.index)
+                .unwrap_or(args.prev_log_index);
+            let reply = follower.handle_append_entries(args);
+            assert!(!reply.success);
+
+            leader
+                .handle_append_entries_response(
+                    2,
+                    expected_prev_log_index,
+                    sent_last_log_index,
+                    Ok(reply),
+                )
+                .await;
+        }
+
+        let args = next_append_entries(&mut leader_outbound_rx).await;
+        assert_eq!(args.prev_log_index, 2);
+        assert_eq!(
+            args.entries,
+            vec![entry(3, 3, false), entry(4, 3, true)]
+        );
+        let sent_last_log_index = args.entries.last().unwrap().index;
+        let reply = follower.handle_append_entries(args);
+        assert!(reply.success);
+
+        leader
+            .handle_append_entries_response(
+                2,
+                2,
+                sent_last_log_index,
+                Ok(reply),
+            )
+            .await;
+
+        assert_eq!(follower.last_log_index(), leader.last_log_index());
+        for index in 1..=leader.last_log_index() {
+            assert_eq!(follower.entry_at(index), leader.entry_at(index));
+        }
+        assert!(follower.entry_at(5).is_none());
+        assert_eq!(leader.match_index.get(&2), Some(&4));
+        assert_eq!(leader.next_index.get(&2), Some(&5));
     }
 
     // Verifies that leaders only advance commitIndex by majority replication of current-term entries.
