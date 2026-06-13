@@ -1,13 +1,246 @@
 general:
   stop_time: 120s
-  bootstrap_end_time: 2s
-  model_unblocked_syscall_latency: true
+  bootstrap_end_time: 500ms
+  # model_unblocked_syscall_latency: true
 
 network:
   graph:
-    type: 1_gbit_switch
-    latency: 30ms
-    jitter: 20ms
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 1
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 2
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 3
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 4
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 5
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 6
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        edge [ 
+          source 0 
+          target 0 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [ 
+          source 1 
+          target 1 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [ 
+          source 2 
+          target 2 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [ 
+          source 3 
+          target 3 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [ 
+          source 4 
+          target 4 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [ 
+          source 5 
+          target 5 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [ 
+          source 6 
+          target 6 
+          latency "1 ms" 
+          jitter "1 ms" 
+          packet_loss 0.0 
+        ]
+        edge [
+          source 0
+          target 1
+          latency "5 ms"
+          jitter "20 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 2
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 3
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 4
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 5
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 0
+          target 6
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 2
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 3
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 4
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 5
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 1
+          target 6
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 2
+          target 3
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 2
+          target 4
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 2
+          target 5
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 2
+          target 6
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 3
+          target 4
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 3
+          target 5
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 3
+          target 6
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 4
+          target 5
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 4
+          target 6
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+        edge [
+          source 5
+          target 6
+          latency "5 ms"
+          jitter "5 ms"
+          packet_loss 0.0
+        ]
+      ]
 
 hosts:
   node1:
@@ -22,7 +255,7 @@ hosts:
           RUST_LOG: info
 
   node2:
-    network_node_id: 0
+    network_node_id: 1
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
@@ -33,18 +266,18 @@ hosts:
           RUST_LOG: info
 
   node3:
-    network_node_id: 0
+    network_node_id: 2
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "3 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-ms 5000 --write-value true"
+        args: "3 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-second 50 --write-value true"
         start_time: 1s
         expected_final_state: running
         environment:
           RUST_LOG: info
 
   node4:
-    network_node_id: 0
+    network_node_id: 3
     ip_addr: 11.0.0.4
     processes:
       - path: /workspaces/RAFT/target/release/raft
@@ -57,7 +290,7 @@ hosts:
           RUST_LOG: info
 
   node5:
-    network_node_id: 0
+    network_node_id: 4
     ip_addr: 11.0.0.5
     processes:
       - path: /workspaces/RAFT/target/release/raft
@@ -70,27 +303,27 @@ hosts:
           RUST_LOG: info
 
   node6:
-    network_node_id: 0
+    network_node_id: 5
     ip_addr: 11.0.0.6
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "6 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-ms 30000 --write-value false --write-at-ms 30020 --write-value false --write-at-ms 30040 --write-value false --write-at-ms 30060 --write-value false --write-at-ms 30080 --write-value false --write-at-ms 30100 --write-value false --write-at-ms 30120 --write-value false --write-at-ms 30140 --write-value false --write-at-ms 30160 --write-value false --write-at-ms 30180 --write-value false --write-at-ms 30200 --write-value false --write-at-ms 30220 --write-value false --write-at-ms 30240 --write-value false --write-at-ms 30260 --write-value false --write-at-ms 30280 --write-value false --write-at-ms 30300 --write-value false --write-at-ms 30320 --write-value false --write-at-ms 30340 --write-value false --write-at-ms 30360 --write-value false --write-at-ms 30380 --write-value false --write-at-ms 31000 --write-value false --write-at-ms 31320 --write-value false --write-at-ms 31640 --write-value false --write-at-ms 31960 --write-value false --write-at-ms 32280 --write-value false --write-at-ms 32600 --write-value false --write-at-ms 32920 --write-value false --write-at-ms 33240 --write-value false --write-at-ms 33560 --write-value false --write-at-ms 33880 --write-value false --write-at-ms 34200 --write-value false --write-at-ms 34520 --write-value false --write-at-ms 34840 --write-value false --write-at-ms 35160 --write-value false --write-at-ms 35480 --write-value false --write-at-ms 35800 --write-value false --write-at-ms 36120 --write-value false --write-at-ms 36440 --write-value false --write-at-ms 36760 --write-value false --write-at-ms 37080 --write-value false --write-at-ms 37400 --write-value false --write-at-ms 37720 --write-value false --write-at-ms 38040 --write-value false --write-at-ms 38360 --write-value false --write-at-ms 38680 --write-value false --write-at-ms 39000 --write-value false --write-at-ms 39320 --write-value false --write-at-ms 39640 --write-value false --write-at-ms 39960 --write-value false --write-at-ms 40280 --write-value false --write-at-ms 40600 --write-value false --write-at-ms 40920 --write-value false --write-at-ms 41240 --write-value false --write-at-ms 41560 --write-value false --write-at-ms 41880 --write-value false --write-at-ms 42200 --write-value false --write-at-ms 42520 --write-value false --write-at-ms 42840 --write-value false --write-at-ms 43160 --write-value false --write-at-ms 43480 --write-value false --write-at-ms 43800 --write-value false --write-at-ms 44120 --write-value false --write-at-ms 44440 --write-value false --write-at-ms 44760 --write-value false --write-at-ms 45080 --write-value false --write-at-ms 45400 --write-value false --write-at-ms 45720 --write-value false --write-at-ms 46040 --write-value false --write-at-ms 46360 --write-value false --write-at-ms 46680 --write-value false --write-at-ms 47000 --write-value false --write-at-ms 47320 --write-value false --write-at-ms 47640 --write-value false --write-at-ms 47960 --write-value false --write-at-ms 48280 --write-value false --write-at-ms 48600 --write-value false --write-at-ms 48920 --write-value false --write-at-ms 49240 --write-value false --write-at-ms 49560 --write-value false --write-at-ms 49880 --write-value false --write-at-ms 50200 --write-value false --write-at-ms 50520 --write-value false --write-at-ms 50840 --write-value false --write-at-ms 51160 --write-value false --write-at-ms 51480 --write-value false --write-at-ms 51800 --write-value false --write-at-ms 52120 --write-value false --write-at-ms 52440 --write-value false --write-at-ms 52760 --write-value false --write-at-ms 53080 --write-value false --write-at-ms 53400 --write-value false --write-at-ms 53720 --write-value false --write-at-ms 54040 --write-value false --write-at-ms 54360 --write-value false --write-at-ms 54680 --write-value false --write-at-ms 55000 --write-value false --write-at-ms 55320 --write-value false --write-at-ms 55640 --write-value false --write-at-ms 55960 --write-value false --write-at-ms 56280 --write-value false"
+        args: "6 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-second 30 --write-value false"
         start_time: 1s
         shutdown_time: 60s
         shutdown_signal: SIGKILL
         expected_final_state: {signaled: SIGKILL}
         environment:
-          RUST_LOG: info
+          RUST_LOG: debug 
 
   node7:
-    network_node_id: 0
+    network_node_id: 6
     ip_addr: 11.0.0.7
     processes:
       - path: /workspaces/RAFT/target/release/raft
-        args: "7 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json --write-at-ms 1000 --write-value true --write-at-ms 1020 --write-value false --write-at-ms 1310 --write-value true --write-at-ms 1450 --write-value true --write-at-ms 1470 --write-value false --write-at-ms 1620 --write-value true --write-at-ms 1840 --write-value false --write-at-ms 1860 --write-value true --write-at-ms 2100 --write-value false --write-at-ms 2250 --write-value true --write-at-ms 2440 --write-value false --write-at-ms 2460 --write-value true --write-at-ms 2720 --write-value true --write-at-ms 2980 --write-value false --write-at-ms 3120 --write-value false --write-at-ms 3340 --write-value true --write-at-ms 3360 --write-value true --write-at-ms 3550 --write-value false --write-at-ms 3710 --write-value true --write-at-ms 3930 --write-value false --write-at-ms 4210 --write-value true --write-at-ms 4230 --write-value true --write-at-ms 4500 --write-value false --write-at-ms 4720 --write-value true --write-at-ms 4890 --write-value false --write-at-ms 5110 --write-value true --write-at-ms 5320 --write-value false --write-at-ms 5340 --write-value false --write-at-ms 5550 --write-value true --write-at-ms 5800 --write-value true --write-at-ms 6010 --write-value false --write-at-ms 6220 --write-value true --write-at-ms 6400 --write-value false --write-at-ms 6420 --write-value true --write-at-ms 6690 --write-value true --write-at-ms 6850 --write-value false --write-at-ms 7040 --write-value true --write-at-ms 7310 --write-value false --write-at-ms 7520 --write-value true --write-at-ms 7540 --write-value false --write-at-ms 7810 --write-value true --write-at-ms 8000 --write-value false --write-at-ms 8250 --write-value true --write-at-ms 8490 --write-value true --write-at-ms 8710 --write-value false --write-at-ms 8920 --write-value true --write-at-ms 8940 --write-value false --write-at-ms 9150 --write-value true --write-at-ms 9330 --write-value false --write-at-ms 9580 --write-value true --write-at-ms 9770 --write-value true --write-at-ms 9790 --write-value false --write-at-ms 10050 --write-value true --write-at-ms 10220 --write-value false --write-at-ms 10440 --write-value true --write-at-ms 10710 --write-value false --write-at-ms 10990 --write-value true --write-at-ms 11010 --write-value true --write-at-ms 11250 --write-value false --write-at-ms 11440 --write-value true --write-at-ms 11620 --write-value false --write-at-ms 11850 --write-value true --write-at-ms 12110 --write-value true --write-at-ms 12130 --write-value false --write-at-ms 12380 --write-value true --write-at-ms 12590 --write-value false --write-at-ms 12820 --write-value true --write-at-ms 13040 --write-value false --write-at-ms 13250 --write-value true --write-at-ms 13270 --write-value true --write-at-ms 13510 --write-value false --write-at-ms 13780 --write-value true --write-at-ms 13990 --write-value false --write-at-ms 14210 --write-value true --write-at-ms 14450 --write-value false --write-at-ms 14470 --write-value true --write-at-ms 14720 --write-value false --write-at-ms 14910 --write-value true --write-at-ms 15150 --write-value false --write-at-ms 15340 --write-value true --write-at-ms 15610 --write-value true --write-at-ms 15630 --write-value false --write-at-ms 15890 --write-value true --write-at-ms 16120 --write-value false --write-at-ms 16340 --write-value true --write-at-ms 16550 --write-value false --write-at-ms 16810 --write-value true --write-at-ms 16830 --write-value true --write-at-ms 17110 --write-value false --write-at-ms 17320 --write-value true --write-at-ms 17550 --write-value false --write-at-ms 17790 --write-value true --write-at-ms 18020 --write-value false --write-at-ms 18040 --write-value true --write-at-ms 18310 --write-value false --write-at-ms 18550 --write-value true --write-at-ms 18740 --write-value true --write-at-ms 18980 --write-value false --write-at-ms 19210 --write-value true --write-at-ms 19230 --write-value false --write-at-ms 19510 --write-value true --write-at-ms 19720 --write-value false --write-at-ms 19900 --write-value true"
+        args: "7 /workspaces/RAFT/tests/shadow_tests/chaos/cluster.json  --write-at-second 10 --write-value true"
         start_time: 1s
         shutdown_time: 20s
         shutdown_signal: SIGKILL
         expected_final_state: {signaled: SIGKILL}
         environment:
-          RUST_LOG: info
+          RUST_LOG: debug 

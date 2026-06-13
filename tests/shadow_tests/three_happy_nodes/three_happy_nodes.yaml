@@ -4,10 +4,57 @@ general:
 
 network:
   graph:
-    type: 1_gbit_switch
-    bandwidth_down: 1 Gbit
-    bandwidth_up: 1 Gbit
-    latency: 10 ms
+    type: gml
+    inline: |
+      graph [
+        directed 0
+        node [
+          id 0
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 1
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        node [
+          id 2
+          host_bandwidth_down "1 Gbit"
+          host_bandwidth_up "1 Gbit"
+        ]
+        edge [ 
+          source 0 
+          target 0 
+          latency "1 ms" 
+        ]
+        edge [ 
+          source 1 
+          target 1 
+          latency "1 ms" 
+        ]
+        edge [ 
+          source 2 
+          target 2 
+          latency "1 ms" 
+        ]
+        
+        edge [ 
+          source 0 
+          target 1 
+          latency "5 ms"
+        ]
+        edge [ 
+          source 0 
+          target 2 
+          latency "5 ms"
+        ]
+        edge [ 
+          source 1 
+          target 2 
+          latency "5 ms"
+        ]
+      ]
 
 hosts:
   node1:
@@ -23,7 +70,7 @@ hosts:
           RUST_LOG: debug
 
   node2:
-    network_node_id: 0
+    network_node_id: 1
     ip_addr: 11.0.0.2
     processes:
       - path: /workspaces/RAFT/target/release/raft
@@ -34,7 +81,7 @@ hosts:
           RUST_LOG: debug
 
   node3:
-    network_node_id: 0
+    network_node_id: 2
     ip_addr: 11.0.0.3
     processes:
       - path: /workspaces/RAFT/target/release/raft
