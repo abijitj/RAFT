@@ -1,0 +1,62 @@
+general:
+  stop_time: 14s
+  bootstrap_end_time: 500ms
+  model_unblocked_syscall_latency: true
+
+# Node 1 is absent while the majority commits and compacts three entries. Its
+# first restart exits immediately before persisting the incoming snapshot. A
+# second restart must receive the retried snapshot and then accept a normal
+# post-snapshot AppendEntries write.
+
+network:
+  graph:
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 10 ms
+
+hosts:
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/interrupted_snapshot_install/cluster.json"
+        start_time: 1s
+        shutdown_time: 1500ms
+        shutdown_signal: SIGKILL
+        expected_final_state: {signaled: SIGKILL}
+        environment: {RUST_LOG: info, RAFT_COMPACTION_THRESHOLD: "3"}
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/interrupted_snapshot_install/cluster.json"
+        start_time: 6s
+        expected_final_state: {exited: 87}
+        environment:
+          RUST_LOG: info
+          RAFT_COMPACTION_THRESHOLD: "3"
+          RAFT_EXIT_BEFORE_SNAPSHOT_INSTALL: "1"
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/interrupted_snapshot_install/cluster.json"
+        start_time: 8s
+        expected_final_state: running
+        environment: {RUST_LOG: info, RAFT_COMPACTION_THRESHOLD: "3"}
+
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/tests/shadow_tests/interrupted_snapshot_install/cluster.json --write-at-ms 1800 --write-value true --write-at-ms 2300 --write-value false --write-at-ms 2800 --write-value true --write-at-ms 8500 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: info, RAFT_COMPACTION_THRESHOLD: "3"}
+
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/interrupted_snapshot_install/cluster.json --write-at-ms 1800 --write-value true --write-at-ms 2300 --write-value false --write-at-ms 2800 --write-value true --write-at-ms 8500 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: info, RAFT_COMPACTION_THRESHOLD: "3"}

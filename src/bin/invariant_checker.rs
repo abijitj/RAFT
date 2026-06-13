@@ -9,15 +9,34 @@ struct NodeState {
     term: u64,
     voted_for: Option<u32>,
     last_index: u64,
+    snapshot_index: u64,
+    snapshot_term: u64,
+    snapshot_value: bool,
     log: Vec<(u64, u64, bool)>, // (index, term, command)
+}
+
+impl NodeState {
+    fn has_index(&self, index: u64) -> bool {
+        index <= self.snapshot_index || self.log.iter().any(|&(i, _, _)| i == index)
+    }
 }
 
 fn load_node(path: &str, node_id: u64) -> Result<NodeState, String> {
     let wal = UnixWal::new(path)?;
     let (term, voted_for) = wal.load_metadata()?;
-    let last_index = wal.log_length()?;
+    let snapshot = wal.load_snapshot()?;
+    let (snapshot_index, snapshot_term, snapshot_value) = snapshot
+        .map(|snapshot| {
+            (
+                snapshot.last_included_index,
+                snapshot.last_included_term,
+                snapshot.state_machine_value,
+            )
+        })
+        .unwrap_or((0, 0, false));
+    let last_index = wal.log_length()?.max(snapshot_index);
     let mut log = Vec::new();
-    for i in 1..=last_index {
+    for i in (snapshot_index + 1)..=last_index {
         match wal.get_entry(i)? {
             Some((entry_term, command_bytes)) => {
                 let command = command_bytes.first().copied().unwrap_or(0) != 0;
@@ -26,7 +45,16 @@ fn load_node(path: &str, node_id: u64) -> Result<NodeState, String> {
             None => return Err(format!("missing log entry {} on node {}", i, node_id)),
         }
     }
-    Ok(NodeState { node_id, term, voted_for, last_index, log })
+    Ok(NodeState {
+        node_id,
+        term,
+        voted_for,
+        last_index,
+        snapshot_index,
+        snapshot_term,
+        snapshot_value,
+        log,
+    })
 }
 
 fn check_election_safety(nodes: &[NodeState]) -> Result<(), String> {
@@ -65,7 +93,7 @@ fn check_election_safety(nodes: &[NodeState]) -> Result<(), String> {
 fn check_leader_append_only(nodes: &[NodeState]) -> Result<(), String> {
     for node in nodes {
         for (k, &(idx, _, _)) in node.log.iter().enumerate() {
-            let expected = k as u64 + 1;
+            let expected = node.snapshot_index + k as u64 + 1;
             if idx != expected {
                 return Err(format!(
                     "Leader Append-Only proxy violated: node {} has non-contiguous log (expected index {}, got {})",
@@ -82,17 +110,28 @@ fn check_log_matching(nodes: &[NodeState]) -> Result<(), String> {
         for j in (i + 1)..nodes.len() {
             let a = &nodes[i];
             let b = &nodes[j];
-            let min_len = a.log.len().min(b.log.len());
-            for k in 0..min_len {
-                let (a_idx, a_term, a_cmd) = a.log[k];
-                let (b_idx, b_term, b_cmd) = b.log[k];
-                if a_idx == b_idx && a_term == b_term && a_cmd != b_cmd {
+            if a.snapshot_index == b.snapshot_index
+                && a.snapshot_index > 0
+                && (a.snapshot_term != b.snapshot_term || a.snapshot_value != b.snapshot_value)
+            {
+                return Err(format!(
+                    "Log Matching violated: nodes {} and {} have different snapshots at index {}",
+                    a.node_id, b.node_id, a.snapshot_index
+                ));
+            }
+
+            for &(a_idx, a_term, a_cmd) in &a.log {
+                let Some(&(_, b_term, b_cmd)) = b.log.iter().find(|&&(idx, _, _)| idx == a_idx)
+                else {
+                    continue;
+                };
+                if a_term == b_term && a_cmd != b_cmd {
                     return Err(format!(
                         "Log Matching violated: nodes {} and {} agree on index={} term={} but differ on command ({} vs {})",
                         a.node_id, b.node_id, a_idx, a_term, a_cmd, b_cmd
                     ));
                 }
-                if a_idx == b_idx && a_term != b_term {
+                if a_term != b_term {
                     return Err(format!(
                         "Log Matching violated: nodes {} and {} have different terms at index {} ({} vs {})",
                         a.node_id, b.node_id, a_idx, a_term, b_term
@@ -113,8 +152,7 @@ fn check_leader_completeness(nodes: &[NodeState]) -> Result<(), String> {
         if count >= majority {
             for node in nodes {
                 if node.last_index >= idx {
-                    let has_entry = node.log.iter().any(|&(i, _, _)| i == idx);
-                    if !has_entry {
+                    if !node.has_index(idx) {
                         return Err(format!(
                             "Leader Completeness violated: entry at index {} is committed (on {}/{} nodes) but missing from node {} (last_index={})",
                             idx, count, total, node.node_id, node.last_index
@@ -181,7 +219,7 @@ fn check_no_committed_entry_lost(nodes: &[NodeState]) -> Result<(), String> {
     for idx in 1..=max_index {
         let holders: Vec<u64> = nodes
             .iter()
-            .filter(|n| n.log.iter().any(|&(i, _, _)| i == idx))
+            .filter(|n| n.has_index(idx))
             .map(|n| n.node_id)
             .collect();
         if holders.len() >= majority {
