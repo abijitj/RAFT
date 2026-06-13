@@ -94,6 +94,11 @@ if [[ "$BASE_NAME" == "storage_failure_fail_stop.yaml" ]]; then
   echo "PASS: storage failures stop Raft participation"
 fi
 
+if [[ "$BASE_NAME" == "conflict_resolution.yaml" ]]; then
+  echo "Evaluating conflict resolution results..."
+  tests/shadow_tests/conflict_resolution/assert_conflict_resolution.sh shadow.data
+fi
+
 TEST_NAME=$(basename "$FILE_NAME" .yaml)
 ARCHIVE_DIR="runs/shadow_tests/${TEST_NAME}"
 

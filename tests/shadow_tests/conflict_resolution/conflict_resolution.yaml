@@ -1,0 +1,52 @@
+general:
+  stop_time: 9s
+  bootstrap_end_time: 500ms
+  model_unblocked_syscall_latency: true
+
+# Node 1 wins the initial election. From 2.5s through 6s of simulation time,
+# the block rules isolate it in both directions:
+#   - node 1 appends an uncommitted `true` entry while it still believes it is leader
+#   - nodes 2 and 3 elect a higher-term leader and commit `false` at the same index
+# After the partition heals, the new leader must make node 1 truncate its
+# conflicting suffix and replace it with the majority log.
+
+network:
+  graph:
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 10 ms
+
+hosts:
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/conflict_resolution/cluster.json --block 2 --from 1500 --to 5000 --block 3 --from 1500 --to 5000 --write-at-ms 2000 --write-value true"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/tests/shadow_tests/conflict_resolution/cluster.json --block 1 --from 1500 --to 5000 --write-at-ms 3000 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
+
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/conflict_resolution/cluster.json --block 1 --from 1500 --to 5000 --write-at-ms 3000 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment:
+          RUST_LOG: info
