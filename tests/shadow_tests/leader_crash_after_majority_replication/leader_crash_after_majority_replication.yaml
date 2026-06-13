@@ -1,0 +1,56 @@
+general:
+  stop_time: 11s
+  bootstrap_end_time: 500ms
+  model_unblocked_syscall_latency: true
+
+# The initial leader exits immediately after a majority response advances its
+# commit index, before the next heartbeat can propagate leader_commit. The two
+# followers elect a replacement leader, which appends a current-term entry.
+# That entry must also make the earlier majority-replicated entry committed and
+# applied. The crashed leader later rejoins and catches up.
+
+network:
+  graph:
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 10 ms
+
+hosts:
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/leader_crash_after_majority_replication/cluster.json --write-at-ms 1500 --write-value true --write-at-ms 3500 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: debug, RAFT_COMPACTION_THRESHOLD: "1000"}
+
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/tests/shadow_tests/leader_crash_after_majority_replication/cluster.json --write-at-ms 1500 --write-value true --write-at-ms 3500 --write-value false"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: debug, RAFT_COMPACTION_THRESHOLD: "1000"}
+
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_crash_after_majority_replication/cluster.json --write-at-ms 1500 --write-value true"
+        start_time: 1s
+        expected_final_state: {exited: 88}
+        environment:
+          RUST_LOG: debug
+          RAFT_COMPACTION_THRESHOLD: "1000"
+          RAFT_EXIT_AFTER_COMMIT_ADVANCE: "1"
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/leader_crash_after_majority_replication/cluster.json"
+        start_time: 6s
+        expected_final_state: running
+        environment: {RUST_LOG: debug, RAFT_COMPACTION_THRESHOLD: "1000"}

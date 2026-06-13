@@ -3,13 +3,13 @@ set -euo pipefail
 
 shadow_data="${1:-shadow.data}"
 
-if ! grep -Rhasq "Received test client command (true). Appending to log" "${shadow_data}/hosts/node1"; then
-    echo "FAIL: node 1 never appended the isolated leader entry" >&2
+if ! grep -Rhasq "Received test client command (true). Appending to log" "${shadow_data}/hosts/node3"; then
+    echo "FAIL: node 3 never appended the isolated leader entry" >&2
     exit 1
 fi
 
-if ! grep -Rhasq "Log conflict at index .* Truncating suffix" "${shadow_data}/hosts/node1"; then
-    echo "FAIL: node 1 never detected and truncated a conflicting log suffix" >&2
+if ! grep -Rhasq "Log conflict at index .* Truncating suffix" "${shadow_data}/hosts/node3"; then
+    echo "FAIL: node 3 never detected and truncated a conflicting log suffix" >&2
     exit 1
 fi
 
@@ -43,7 +43,7 @@ if ! printf '%s\n' "$reference_entries" | grep -q 'command=\[0\]'; then
 fi
 
 if printf '%s\n' "$reference_entries" | grep -q 'command=\[1\]'; then
-    echo "FAIL: node 1's isolated true entry survived conflict resolution" >&2
+    echo "FAIL: node 3's isolated true entry survived conflict resolution" >&2
     exit 1
 fi
 

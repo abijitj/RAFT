@@ -25,6 +25,10 @@ fn compaction_threshold() -> u64 {
     }
 }
 
+fn fault_enabled(name: &str) -> bool {
+    matches!(env::var(name).as_deref(), Ok("1") | Ok("true"))
+}
+
 /// The operational states a Raft node can occupy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeState {
@@ -751,6 +755,14 @@ impl RaftCore {
             info!("Leader updated commit_index to {}", self.commit_index);
             self.apply_committed_entries();
             self.maybe_compact();
+
+            if fault_enabled("RAFT_EXIT_AFTER_COMMIT_ADVANCE") {
+                error!(
+                    "FAULT_INJECTION exiting after commit_index advanced to {}",
+                    self.commit_index
+                );
+                std::process::exit(88);
+            }
         }
     }
 
@@ -782,6 +794,13 @@ impl RaftCore {
                 Some(_) => {
                     info!("Log conflict at index {}. Truncating suffix.", entry.index);
                     self.truncate_suffix_from(entry.index);
+                    if fault_enabled("RAFT_EXIT_AFTER_CONFLICT_TRUNCATION") {
+                        error!(
+                            "FAULT_INJECTION exiting after truncating conflicting suffix at index {}",
+                            entry.index
+                        );
+                        std::process::exit(86);
+                    }
                     self.push_log_entry(entry);
                 }
                 None => self.push_log_entry(entry),
@@ -990,6 +1009,14 @@ impl RaftCore {
             "Installing snapshot from leader {}: last_included_index={} value={}",
             args.leader_id, args.last_included_index, args.state_machine_value
         );
+
+        if fault_enabled("RAFT_EXIT_BEFORE_SNAPSHOT_INSTALL") {
+            error!(
+                "FAULT_INJECTION exiting before installing snapshot at index {}",
+                args.last_included_index
+            );
+            std::process::exit(87);
+        }
 
         if let Err(e) = self.storage.save_snapshot(
             args.last_included_index,

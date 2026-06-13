@@ -1,0 +1,47 @@
+general:
+  stop_time: 9s
+  bootstrap_end_time: 500ms
+  model_unblocked_syscall_latency: true
+
+# Nodes 1 and 2 reject traffic sent by the initial leader, node 3, while node 3
+# can still receive their RPCs. The one-way failure forces a higher-term leader
+# to take over without requiring a symmetric network split. After the rule
+# expires, all logs must converge and accept another write.
+
+network:
+  graph:
+    type: 1_gbit_switch
+    bandwidth_down: 1 Gbit
+    bandwidth_up: 1 Gbit
+    latency: 10 ms
+
+hosts:
+  node1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "1 /workspaces/RAFT/tests/shadow_tests/asymmetric_partition/cluster.json --block 3 --from 1500 --to 4500 --write-at-ms 1000 --write-value true --write-at-ms 2500 --write-value false --write-at-ms 6000 --write-value true"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: debug, RAFT_COMPACTION_THRESHOLD: "1000"}
+
+  node2:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "2 /workspaces/RAFT/tests/shadow_tests/asymmetric_partition/cluster.json --block 3 --from 1500 --to 4500 --write-at-ms 1000 --write-value true --write-at-ms 2500 --write-value false --write-at-ms 6000 --write-value true"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: debug, RAFT_COMPACTION_THRESHOLD: "1000"}
+
+  node3:
+    network_node_id: 0
+    ip_addr: 11.0.0.3
+    processes:
+      - path: /workspaces/RAFT/target/release/raft
+        args: "3 /workspaces/RAFT/tests/shadow_tests/asymmetric_partition/cluster.json --write-at-ms 1000 --write-value true --write-at-ms 2500 --write-value false --write-at-ms 6000 --write-value true"
+        start_time: 1s
+        expected_final_state: running
+        environment: {RUST_LOG: debug, RAFT_COMPACTION_THRESHOLD: "1000"}

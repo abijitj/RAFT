@@ -99,6 +99,29 @@ if [[ "$BASE_NAME" == "conflict_resolution.yaml" ]]; then
   tests/shadow_tests/conflict_resolution/assert_conflict_resolution.sh shadow.data
 fi
 
+case "$BASE_NAME" in
+  leader_completeness_multi_term.yaml)
+    echo "Evaluating leader completeness results..."
+    tests/shadow_tests/leader_completeness_multi_term/assert_leader_completeness_multi_term.sh shadow.data
+    ;;
+  asymmetric_partition.yaml)
+    echo "Evaluating asymmetric partition results..."
+    tests/shadow_tests/asymmetric_partition/assert_asymmetric_partition.sh shadow.data
+    ;;
+  conflict_repair_crash.yaml)
+    echo "Evaluating interrupted conflict repair results..."
+    tests/shadow_tests/conflict_repair_crash/assert_conflict_repair_crash.sh shadow.data
+    ;;
+  interrupted_snapshot_install.yaml)
+    echo "Evaluating interrupted snapshot results..."
+    tests/shadow_tests/interrupted_snapshot_install/assert_interrupted_snapshot_install.sh shadow.data
+    ;;
+  leader_crash_after_majority_replication.yaml)
+    echo "Evaluating majority replication crash results..."
+    tests/shadow_tests/leader_crash_after_majority_replication/assert_leader_crash_after_majority_replication.sh shadow.data
+    ;;
+esac
+
 TEST_NAME=$(basename "$FILE_NAME" .yaml)
 ARCHIVE_DIR="runs/shadow_tests/${TEST_NAME}"
 
